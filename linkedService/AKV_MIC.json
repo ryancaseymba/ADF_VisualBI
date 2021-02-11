@@ -1,0 +1,10 @@
+{
+	"name": "AKV_MIC",
+	"properties": {
+		"annotations": [],
+		"type": "AzureKeyVault",
+		"typeProperties": {
+			"baseUrl": "https://akv-mic-d-01.vault.azure.net/"
+		}
+	}
+}

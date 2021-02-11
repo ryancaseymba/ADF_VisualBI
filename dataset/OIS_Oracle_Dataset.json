@@ -1,0 +1,12 @@
+{
+	"name": "OIS_Oracle_Dataset",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "Oracle_MIC_OIS",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "OracleTable",
+		"schema": []
+	}
+}

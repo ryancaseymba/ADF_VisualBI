@@ -1,0 +1,11 @@
+{
+	"name": "STG_MIC_Config",
+	"properties": {
+		"annotations": [],
+		"type": "AzureBlobStorage",
+		"typeProperties": {
+			"serviceEndpoint": "https://stmicconfigdev01.blob.core.windows.net",
+			"accountKind": "StorageV2"
+		}
+	}
+}

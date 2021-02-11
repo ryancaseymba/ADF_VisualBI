@@ -1,0 +1,41 @@
+{
+	"name": "Generic_SCD1_Dataflow",
+	"properties": {
+		"folder": {
+			"name": "Common"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SourceInput"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SinktoDatalake"
+				}
+			],
+			"transformations": [
+				{
+					"name": "AddColumns"
+				},
+				{
+					"name": "GenerateSurrogateKey"
+				},
+				{
+					"name": "DropUnwantedCols"
+				}
+			],
+			"script": "parameters{\n\tDimTable as string,\n\tKeyColumns as string,\n\tSKColumn as string,\n\tNonKeyColumns as string\n}\nsource(allowSchemaDrift: true,\n\tvalidateSchema: false) ~> SourceInput\nGenerateSurrogateKey derive(HashKey = sha2(256,byNames(split($KeyColumns,'-'))),\n\t\tHashNonKey = sha2(256,byNames(split($NonKeyColumns,'-')))) ~> AddColumns\nSourceInput keyGenerate(output(Key as long),\n\tstartAt: 1L) ~> GenerateSurrogateKey\nAddColumns select(mapColumn(\n\t\teach(match(!in(['key','PipelineRunTime'],name)))\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> DropUnwantedCols\nDropUnwantedCols sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:[($DimTable)],\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\tquoteAll: true) ~> SinktoDatalake"
+		}
+	}
+}

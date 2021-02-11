@@ -1,0 +1,172 @@
+{
+	"name": "LoopThrough-Orchestration-Database-Activity-Pipeline",
+	"properties": {
+		"activities": [
+			{
+				"name": "For Each Enhance Table",
+				"type": "ForEach",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@pipeline().parameters.EnhanceConfig.InputValues.SplitTables.Tables",
+						"type": "Expression"
+					},
+					"isSequential": true,
+					"activities": [
+						{
+							"name": "Kickoff Database Activity",
+							"type": "Switch",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"on": {
+									"value": "@item().DatabasePipelineName",
+									"type": "Expression"
+								},
+								"cases": [
+									{
+										"value": "Activity-DataLake-Database-Copy-Pipeline",
+										"activities": [
+											{
+												"name": "Kickoff Activity DataLake Database Copy",
+												"type": "ExecutePipeline",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "Activity-DataLake-Database-Copy-Pipeline",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"SourceContainer": {
+															"value": "@pipeline().parameters.EnhanceDataContainer",
+															"type": "Expression"
+														},
+														"SourceFilePath": {
+															"value": "@concat(pipeline().parameters.EnhanceDimFilePath,'/',item().EnhanceTable)",
+															"type": "Expression"
+														},
+														"SourceFileName": {
+															"value": "@item().EnhanceTable",
+															"type": "Expression"
+														},
+														"TargetSchemaName": {
+															"value": "@item().Schema",
+															"type": "Expression"
+														},
+														"TargetTableName": {
+															"value": "@item().EnhanceTable",
+															"type": "Expression"
+														},
+														"PreCopyScript": {
+															"value": "@item().PreCopyScript",
+															"type": "Expression"
+														}
+													}
+												}
+											}
+										]
+									},
+									{
+										"value": "Activity-Enhance-Database-Stage-StoredProcedure-Pipeline",
+										"activities": [
+											{
+												"name": "Kickoff Database Stored Procedure Activity",
+												"type": "ExecutePipeline",
+												"dependsOn": [],
+												"userProperties": [],
+												"typeProperties": {
+													"pipeline": {
+														"referenceName": "Activity-Enhance-Database-Stage-StoredProcedure-Pipeline",
+														"type": "PipelineReference"
+													},
+													"waitOnCompletion": true,
+													"parameters": {
+														"SourceContainer": {
+															"value": "@pipeline().parameters.EnhanceDataContainer",
+															"type": "Expression"
+														},
+														"SourceFilePath": {
+															"value": "@concat(pipeline().parameters.EnhanceFactFilePath,'/',item().EnhanceTable)",
+															"type": "Expression"
+														},
+														"SourceFileName": {
+															"value": "@item().EnhanceTable",
+															"type": "Expression"
+														},
+														"TargetSchemaName": {
+															"value": "@item().Schema",
+															"type": "Expression"
+														},
+														"TargetTableName": {
+															"value": "@item().EnhanceTable",
+															"type": "Expression"
+														},
+														"StageSchemaName": {
+															"value": "@item().StageSchema",
+															"type": "Expression"
+														},
+														"PreCopyScript": {
+															"value": "@item().PreCopyScript",
+															"type": "Expression"
+														},
+														"StoredProcedureName": {
+															"value": "@item().StoredProcedureName",
+															"type": "Expression"
+														},
+														"IsVersioned": {
+															"value": "@item().StoredProcedureParameters.IsVersioned",
+															"type": "Expression"
+														},
+														"VersionStartDateField": {
+															"value": "@item().StoredProcedureParameters.VersionStartDateField",
+															"type": "Expression"
+														},
+														"VersionEndDateField": {
+															"value": "@item().StoredProcedureParameters.VersionEndDateField",
+															"type": "Expression"
+														},
+														"VersionField": {
+															"value": "@item().StoredProcedureParameters.VersionEndDateField",
+															"type": "Expression"
+														}
+													}
+												}
+											}
+										]
+									}
+								]
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"EnhanceConfig": {
+				"type": "object"
+			},
+			"ModelDataContainer": {
+				"type": "string"
+			},
+			"EnhanceDataContainer": {
+				"type": "string"
+			},
+			"DataSource": {
+				"type": "string"
+			},
+			"EnhanceFactFilePath": {
+				"type": "string"
+			},
+			"EnhanceDimFilePath": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "Orchestration"
+		},
+		"annotations": []
+	}
+}

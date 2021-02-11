@@ -1,0 +1,245 @@
+{
+	"name": "Activity-Enhance-Database-Stage-StoredProcedure-Pipeline",
+	"properties": {
+		"activities": [
+			{
+				"name": "Copy data",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "DelimitedTextSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true
+						},
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						}
+					},
+					"sink": {
+						"type": "AzureSqlSink",
+						"preCopyScript": {
+							"value": "@{pipeline().parameters.PreCopyScript}",
+							"type": "Expression"
+						},
+						"disableMetricsCollection": false
+					},
+					"enableStaging": false,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference",
+						"parameters": {
+							"ContainerName": {
+								"value": "@pipeline().parameters.SourceContainer",
+								"type": "Expression"
+							},
+							"FilePath": {
+								"value": "@pipeline().parameters.SourceFilePath",
+								"type": "Expression"
+							},
+							"FileName": {
+								"value": "@pipeline().parameters.SourceFileName",
+								"type": "Expression"
+							}
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "Azure_SQL_DB_Dataset",
+						"type": "DatasetReference",
+						"parameters": {
+							"TableName": {
+								"value": "@pipeline().parameters.TargetTableName",
+								"type": "Expression"
+							},
+							"SchemaName": {
+								"value": "@pipeline().parameters.StageSchemaName",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			},
+			{
+				"name": "Condition To Check Procedure Name",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Copy data",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(pipeline().parameters.StoredProcedureName,'LoadFact')",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Stored procedure",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": {
+									"value": "@pipeline().parameters.StoredProcedureName",
+									"type": "Expression"
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "SQL_MIC_Azure",
+								"type": "LinkedServiceReference"
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Stored Procedure Load Fact",
+							"type": "SqlServerStoredProcedure",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"storedProcedureName": "[etl].[LoadFact]",
+								"storedProcedureParameters": {
+									"DatabaseName": {
+										"value": "sqldb-mic-d-01",
+										"type": "String"
+									},
+									"IsVersioned": {
+										"value": {
+											"value": "@pipeline().parameters.IsVersioned",
+											"type": "Expression"
+										},
+										"type": "Int32"
+									},
+									"SchemaName": {
+										"value": {
+											"value": "@pipeline().parameters.TargetSchemaName",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"TableName": {
+										"value": {
+											"value": "@pipeline().parameters.TargetTableName",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"VersionEndDate": {
+										"value": {
+											"value": "@pipeline().parameters.VersionEndDateField",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"VersionField": {
+										"value": {
+											"value": "@pipeline().parameters.VersionField",
+											"type": "Expression"
+										},
+										"type": "String"
+									},
+									"VersionStartDate": {
+										"value": {
+											"value": "@pipeline().parameters.VersionStartDateField",
+											"type": "Expression"
+										},
+										"type": "String"
+									}
+								}
+							},
+							"linkedServiceName": {
+								"referenceName": "SQL_MIC_Azure",
+								"type": "LinkedServiceReference"
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"SourceContainer": {
+				"type": "string"
+			},
+			"SourceFilePath": {
+				"type": "string"
+			},
+			"SourceFileName": {
+				"type": "string"
+			},
+			"TargetSchemaName": {
+				"type": "string"
+			},
+			"TargetTableName": {
+				"type": "string"
+			},
+			"StageSchemaName": {
+				"type": "string"
+			},
+			"PreCopyScript": {
+				"type": "string"
+			},
+			"StoredProcedureName": {
+				"type": "string"
+			},
+			"IsVersioned": {
+				"type": "string",
+				"defaultValue": "0"
+			},
+			"VersionStartDateField": {
+				"type": "string",
+				"defaultValue": " "
+			},
+			"VersionEndDateField": {
+				"type": "string",
+				"defaultValue": " "
+			},
+			"VersionField": {
+				"type": "string",
+				"defaultValue": " "
+			}
+		},
+		"folder": {
+			"name": "Activity"
+		},
+		"annotations": []
+	}
+}

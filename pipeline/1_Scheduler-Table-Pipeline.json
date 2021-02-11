@@ -1,0 +1,388 @@
+{
+	"name": "1_Scheduler-Table-Pipeline",
+	"properties": {
+		"description": "Look at base config file and runs item within the table array.",
+		"activities": [
+			{
+				"name": "Set Pipeline Trigger Time",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "ScheduledTime",
+					"value": {
+						"value": "@pipeline().TriggerTime",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Input File Lookup",
+				"description": "Look up base config file with table name items.",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Set Pipeline Trigger Time",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Set Project Tag",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobStorageReadSettings",
+							"recursive": true,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "Config_Blob_Dataset",
+						"type": "DatasetReference",
+						"parameters": {
+							"FilePath": {
+								"value": "@pipeline().parameters.SchedulerFilePath",
+								"type": "Expression"
+							},
+							"FileName": {
+								"value": "@pipeline().parameters.SchedulerName",
+								"type": "Expression"
+							},
+							"ContainerName": "pipeline-parameters"
+						}
+					},
+					"firstRowOnly": true
+				}
+			},
+			{
+				"name": "For Each Dependent Table",
+				"description": "Loops through each item in the config file.",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Filter Table Type Others",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Filter Table Type Others').output.Value",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"batchCount": 6,
+					"activities": [
+						{
+							"name": "Execute_Scheduler_Table_Config_Lookup_Others",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "2_Scheduler-Table-Config-Lookup-Pipeline",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"TableName": {
+										"value": "@item().Table",
+										"type": "Expression"
+									},
+									"ScheduledTime": {
+										"value": "@variables('ScheduledTime')",
+										"type": "Expression"
+									},
+									"DataSource": {
+										"value": "@item().DataSource",
+										"type": "Expression"
+									},
+									"SchemaName": {
+										"value": "@item().Schema",
+										"type": "Expression"
+									},
+									"FullLoadAllTables": {
+										"value": "@pipeline().parameters.FullLoadAllTables",
+										"type": "Expression"
+									},
+									"ProjectTag": {
+										"value": "@variables('ProjectTag')",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "For Each Dimension Table",
+				"description": "Loops through each item in the config file.",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Filter Table Type Dim",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Filter Table Type Dim').output.Value",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"batchCount": 6,
+					"activities": [
+						{
+							"name": "Execute_Scheduler_Table_Config_Lookup_Dim",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "2_Scheduler-Table-Config-Lookup-Pipeline",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"TableName": {
+										"value": "@item().Table",
+										"type": "Expression"
+									},
+									"ScheduledTime": {
+										"value": "@variables('ScheduledTime')",
+										"type": "Expression"
+									},
+									"DataSource": {
+										"value": "@item().DataSource",
+										"type": "Expression"
+									},
+									"SchemaName": {
+										"value": "@item().Schema",
+										"type": "Expression"
+									},
+									"FullLoadAllTables": {
+										"value": "@pipeline().parameters.FullLoadAllTables",
+										"type": "Expression"
+									},
+									"ProjectTag": {
+										"value": "@variables('ProjectTag')",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "For Each Fact Table",
+				"description": "Loops through each item in the config file.",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Filter Table Type Fact",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Filter Table Type Fact').output.Value",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"batchCount": 6,
+					"activities": [
+						{
+							"name": "Execute_Scheduler_Table_Fact_Config_Source",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "2_Scheduler-Table-Config-Lookup-Pipeline",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"TableName": {
+										"value": "@item().Table",
+										"type": "Expression"
+									},
+									"ScheduledTime": {
+										"value": "@variables('ScheduledTime')",
+										"type": "Expression"
+									},
+									"DataSource": {
+										"value": "@item().DataSource",
+										"type": "Expression"
+									},
+									"SchemaName": {
+										"value": "@item().Schema",
+										"type": "Expression"
+									},
+									"FullLoadAllTables": {
+										"value": "@pipeline().parameters.FullLoadAllTables",
+										"type": "Expression"
+									},
+									"ProjectTag": {
+										"value": "@variables('ProjectTag')",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			},
+			{
+				"name": "Filter Table Type Others",
+				"type": "Filter",
+				"dependsOn": [
+					{
+						"activity": "Input File Lookup",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Input File Lookup').output.FirstRow.table",
+						"type": "Expression"
+					},
+					"condition": {
+						"value": "@if(empty(pipeline().parameters.TableName),and(equals(item().TableType,'Others'),equals(item().DataSource,pipeline().parameters.DataSource)),and(and(equals(item().TableType,'Others'),equals(item().DataSource,pipeline().parameters.DataSource)),equals(item().Table,pipeline().parameters.TableName)))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Filter Table Type Dim",
+				"type": "Filter",
+				"dependsOn": [
+					{
+						"activity": "For Each Dependent Table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Input File Lookup').output.FirstRow.table",
+						"type": "Expression"
+					},
+					"condition": {
+						"value": "@if(empty(pipeline().parameters.TableName),and(equals(item().TableType,'Dim'),equals(item().DataSource,pipeline().parameters.DataSource)),and(and(equals(item().TableType,'Dim'),equals(item().DataSource,pipeline().parameters.DataSource)),equals(item().Table,pipeline().parameters.TableName)))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Filter Table Type Fact",
+				"type": "Filter",
+				"dependsOn": [
+					{
+						"activity": "For Each Dimension Table",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Input File Lookup').output.FirstRow.table",
+						"type": "Expression"
+					},
+					"condition": {
+						"value": "@and(and(equals(item().TableType,'Fact'),equals(item().DataSource,pipeline().parameters.DataSource)),contains(pipeline().parameters.TableType,'Fact'))",
+						"type": "Expression"
+					}
+				}
+			},
+			{
+				"name": "Set Project Tag",
+				"type": "SetVariable",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"variableName": "ProjectTag",
+					"value": {
+						"value": "@pipeline().parameters.SchedulerFilePath",
+						"type": "Expression"
+					}
+				}
+			}
+		],
+		"parameters": {
+			"DataSource": {
+				"type": "string"
+			},
+			"TableType": {
+				"type": "array",
+				"defaultValue": [
+					"Dim",
+					"Fact"
+				]
+			},
+			"TableName": {
+				"type": "string"
+			},
+			"FullLoadAllTables": {
+				"type": "bool",
+				"defaultValue": false
+			},
+			"SchedulerFilePath": {
+				"type": "string",
+				"defaultValue": "ioc"
+			},
+			"SchedulerName": {
+				"type": "string",
+				"defaultValue": "SchedulerTables.json"
+			}
+		},
+		"variables": {
+			"ScheduledTime": {
+				"type": "String"
+			},
+			"ProjectTag": {
+				"type": "String"
+			}
+		},
+		"folder": {
+			"name": "Schedulers"
+		},
+		"annotations": []
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

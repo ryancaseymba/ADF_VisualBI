@@ -1,0 +1,16 @@
+{
+	"Pipeline": [
+		{
+            "EnhancePipelineName": "Activity-Enhance-Dimension-SCD2-Pipeline",	
+            "DatabasePipelineName": "Activity-DataLake-Database-Copy-Pipeline",			
+			"InputValues": {
+                "ModelTable": "AllAnalyteD",
+                "EnhanceTable": "Analyte",
+                "KeyColumns": "AnalyteId",
+                "NonKeyColumns": "AnalyteName",
+                "SurrogateKeyColumn": "AnalyteSkId",
+				"PreCopyScript": "TRUNCATE TABLE dim.Analyte"			
+			}
+		}
+	]
+}

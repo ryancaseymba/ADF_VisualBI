@@ -1,0 +1,31 @@
+{
+	"name": "PI_MIC_OLEDBEnt",
+	"properties": {
+		"annotations": [],
+		"type": "Odbc",
+		"typeProperties": {
+			"connectionString": {
+				"type": "AzureKeyVaultSecret",
+				"store": {
+					"referenceName": "AKV_MIC",
+					"type": "LinkedServiceReference"
+				},
+				"secretName": "PI-OLEDBEnt"
+			},
+			"authenticationType": "Basic",
+			"userName": "svcPiIOC",
+			"password": {
+				"type": "AzureKeyVaultSecret",
+				"store": {
+					"referenceName": "AKV_MIC",
+					"type": "LinkedServiceReference"
+				},
+				"secretName": "PI-Password"
+			}
+		},
+		"connectVia": {
+			"referenceName": "ADF-IR-01",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}

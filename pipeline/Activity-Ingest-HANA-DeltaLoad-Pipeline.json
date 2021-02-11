@@ -1,0 +1,155 @@
+{
+	"name": "Activity-Ingest-HANA-DeltaLoad-Pipeline",
+	"properties": {
+		"activities": [
+			{
+				"name": "Copy HANA Data",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Get Max Timestamp",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SapHanaSource",
+						"query": {
+							"value": "@concat(replace(pipeline().parameters.ingestQuery,'{pipelineTime}',pipeline().TriggerTime),' where ',pipeline().parameters.deltaColumn,' >''',addToTime(string(activity('Get Max Timestamp').output.firstRow['Delta']),if(equals(pipeline().parameters.deltaOffset,''),0,int(pipeline().parameters.deltaOffset)),if(equals(pipeline().parameters.deltaOffsetUnit,''),'minute',pipeline().parameters.deltaOffsetUnit)),'''')",
+							"type": "Expression"
+						},
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "HANA_Dataset",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference",
+						"parameters": {
+							"ContainerName": {
+								"value": "@pipeline().parameters.dataContainer",
+								"type": "Expression"
+							},
+							"FilePath": {
+								"value": "@pipeline().parameters.filePath",
+								"type": "Expression"
+							},
+							"FileName": {
+								"value": "@pipeline().parameters.fileName",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			},
+			{
+				"name": "Get Max Timestamp",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "DelimitedTextSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": false,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference",
+						"parameters": {
+							"ContainerName": {
+								"value": "@pipeline().parameters.dataContainer",
+								"type": "Expression"
+							},
+							"FilePath": {
+								"value": "@pipeline().parameters.watermarkFilePath",
+								"type": "Expression"
+							},
+							"FileName": {
+								"value": "@replace(pipeline().parameters.fileName,'.','_watermark.')",
+								"type": "Expression"
+							}
+						}
+					}
+				}
+			}
+		],
+		"parameters": {
+			"ingestQuery": {
+				"type": "string"
+			},
+			"filePath": {
+				"type": "string"
+			},
+			"fileName": {
+				"type": "string"
+			},
+			"deltaColumn": {
+				"type": "string"
+			},
+			"deltaOffsetUnit": {
+				"type": "string",
+				"defaultValue": "Minute"
+			},
+			"deltaOffset": {
+				"type": "int",
+				"defaultValue": 0
+			},
+			"watermarkFilePath": {
+				"type": "string"
+			},
+			"configContainer": {
+				"type": "string"
+			},
+			"dataContainer": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "Activity"
+		},
+		"annotations": []
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

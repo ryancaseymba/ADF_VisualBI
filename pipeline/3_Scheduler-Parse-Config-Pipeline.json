@@ -1,0 +1,92 @@
+{
+	"name": "3_Scheduler-Parse-Config-Pipeline",
+	"properties": {
+		"description": "Parses json into different values for each table.",
+		"activities": [
+			{
+				"name": "Input Table For Each",
+				"description": "For each table in the tableConfig file.",
+				"type": "ForEach",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@pipeline().parameters.Table.Pipeline",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"activities": [
+						{
+							"name": "Loop Through Pipelines",
+							"description": "Executes  4_Scheduler-Kickoff-Orchestration with parsed JSON in the parameters. ",
+							"type": "ExecutePipeline",
+							"dependsOn": [],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "4_Scheduler-Kickoff-Base-Orchestration-Pipeline",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Pipeline": {
+										"value": "@item()",
+										"type": "Expression"
+									},
+									"Year": {
+										"value": "@formatDateTime(pipeline().parameters.ScheduledTime, 'yyyy')",
+										"type": "Expression"
+									},
+									"Month": {
+										"value": "@formatDateTime(pipeline().parameters.ScheduledTime, 'MM')",
+										"type": "Expression"
+									},
+									"Day": {
+										"value": "@formatDateTime(pipeline().parameters.ScheduledTime, 'dd')",
+										"type": "Expression"
+									},
+									"FullLoadAllTables": {
+										"value": "@pipeline().parameters.FullLoadAllTables",
+										"type": "Expression"
+									},
+									"Hour": {
+										"value": "@formatDateTime(pipeline().parameters.ScheduledTime, 'HH')",
+										"type": "Expression"
+									},
+									"Minute": {
+										"value": "@formatDateTime(pipeline().parameters.ScheduledTime, 'mm')",
+										"type": "Expression"
+									},
+									"ProjectTag": {
+										"value": "@pipeline().parameters.ProjectTag",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"Table": {
+				"type": "Object"
+			},
+			"ScheduledTime": {
+				"type": "String"
+			},
+			"FullLoadAllTables": {
+				"type": "bool",
+				"defaultValue": false
+			},
+			"ProjectTag": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "Schedulers"
+		},
+		"annotations": []
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

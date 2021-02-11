@@ -1,0 +1,249 @@
+{
+	"name": "4_Scheduler-Kickoff-Base-Orchestration-Pipeline",
+	"properties": {
+		"activities": [
+			{
+				"name": "Switch_KickOff_IOC_Orchestration",
+				"type": "Switch",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"on": {
+						"value": "@if(equals(pipeline().parameters.ProjectTag,'ioc'),pipeline().parameters.Pipeline.OrchestrationPipelineName,'')",
+						"type": "Expression"
+					},
+					"cases": [
+						{
+							"value": "Base-Orchestration-Dependent-Tables-Pipeline",
+							"activities": [
+								{
+									"name": "KickOff Base Orchestration Dependent Tables Pipeline",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Base-Orchestration-Dependent-Tables-Pipeline",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"IngestConfig": {
+												"value": "@pipeline().parameters.Pipeline",
+												"type": "Expression"
+											},
+											"FullLoadAllTables": {
+												"value": "@pipeline().parameters.FullLoadAllTables",
+												"type": "Expression"
+											},
+											"Year": {
+												"value": "@pipeline().parameters.Year",
+												"type": "Expression"
+											},
+											"Month": {
+												"value": "@pipeline().parameters.Month",
+												"type": "Expression"
+											},
+											"Day": {
+												"value": "@pipeline().parameters.Day",
+												"type": "Expression"
+											},
+											"Hour": {
+												"value": "@pipeline().parameters.Hour",
+												"type": "Expression"
+											},
+											"Minute": {
+												"value": "@pipeline().parameters.Minute",
+												"type": "Expression"
+											},
+											"IngestDataContainer": {
+												"value": "ingest",
+												"type": "Expression"
+											},
+											"ModelDataContainer": {
+												"value": "model",
+												"type": "Expression"
+											},
+											"ModelConfigContainer": {
+												"value": "pipeline-parameters",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						},
+						{
+							"value": "Base-Orchestration-Dimension-Pipeline",
+							"activities": [
+								{
+									"name": "KickOff Base Orchestration Dimension Pipeline",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Base-Orchestration-Dimension-Pipeline",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"IngestConfig": {
+												"value": "@pipeline().parameters.Pipeline",
+												"type": "Expression"
+											},
+											"FullLoadAllTables": {
+												"value": "@pipeline().parameters.FullLoadAllTables",
+												"type": "Expression"
+											},
+											"Year": {
+												"value": "@pipeline().parameters.Year",
+												"type": "Expression"
+											},
+											"Month": {
+												"value": "@pipeline().parameters.Month",
+												"type": "Expression"
+											},
+											"Day": {
+												"value": "@pipeline().parameters.Day",
+												"type": "Expression"
+											},
+											"Hour": {
+												"value": "@pipeline().parameters.Hour",
+												"type": "Expression"
+											},
+											"Minute": {
+												"value": "@pipeline().parameters.Minute",
+												"type": "Expression"
+											},
+											"IngestDataContainer": {
+												"value": "ingest",
+												"type": "Expression"
+											},
+											"ModelDataContainer": {
+												"value": "model",
+												"type": "Expression"
+											},
+											"ModelConfigContainer": {
+												"value": "pipeline-parameters",
+												"type": "Expression"
+											},
+											"EnhanceDataContainer": {
+												"value": "enhance",
+												"type": "Expression"
+											},
+											"EnhanceConfigContainer": {
+												"value": "pipeline-parameters",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						},
+						{
+							"value": "Base-Orchestration-Split-Fact-Dimension-Pipeline",
+							"activities": [
+								{
+									"name": "KickOff Base Orchestration Split Fact dimenson",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Base-Orchestration-Split-Fact-Dimension-Pipeline",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"IngestConfig": {
+												"value": "@pipeline().parameters.Pipeline",
+												"type": "Expression"
+											},
+											"FullLoadAllTables": {
+												"value": "@pipeline().parameters.FullLoadAllTables",
+												"type": "Expression"
+											},
+											"Year": {
+												"value": "@pipeline().parameters.Year",
+												"type": "Expression"
+											},
+											"Month": {
+												"value": "@pipeline().parameters.Month",
+												"type": "Expression"
+											},
+											"Day": {
+												"value": "@pipeline().parameters.Day",
+												"type": "Expression"
+											},
+											"Hour": {
+												"value": "@pipeline().parameters.Hour",
+												"type": "Expression"
+											},
+											"Minute": {
+												"value": "@pipeline().parameters.Minute",
+												"type": "Expression"
+											},
+											"IngestDataContainer": {
+												"value": "ingest",
+												"type": "Expression"
+											},
+											"ModelDataContainer": {
+												"value": "model",
+												"type": "Expression"
+											},
+											"ModelConfigContainer": {
+												"value": "pipeline-parameters",
+												"type": "Expression"
+											},
+											"EnhanceDataContainer": {
+												"value": "enhance",
+												"type": "Expression"
+											},
+											"EnhanceConfigContainer": {
+												"value": "pipeline-parameters",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"Pipeline": {
+				"type": "object"
+			},
+			"Year": {
+				"type": "string"
+			},
+			"Month": {
+				"type": "string"
+			},
+			"Day": {
+				"type": "string"
+			},
+			"FullLoadAllTables": {
+				"type": "bool",
+				"defaultValue": false
+			},
+			"Hour": {
+				"type": "string"
+			},
+			"Minute": {
+				"type": "string"
+			},
+			"ProjectTag": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "Schedulers"
+		},
+		"annotations": []
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

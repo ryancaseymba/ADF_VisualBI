@@ -1,0 +1,98 @@
+{
+	"name": "OIS_QclSampleResults_Dataflow",
+	"properties": {
+		"folder": {
+			"name": "IOC"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SourceFromModel"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SinkSampleDetail"
+				},
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SinkSampleLocation"
+				},
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SinkSample"
+				},
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SinkParameterType"
+				}
+			],
+			"transformations": [
+				{
+					"name": "SampleDetailGenerateHashColumns"
+				},
+				{
+					"name": "SampleDetailDistinctRows"
+				},
+				{
+					"name": "SampleLocationGenerateHashColumns"
+				},
+				{
+					"name": "SampleLocationDistinctRows"
+				},
+				{
+					"name": "SampleLocationKey"
+				},
+				{
+					"name": "SampleGenerateHashColumns"
+				},
+				{
+					"name": "SampleDistinctRows"
+				},
+				{
+					"name": "SampleSurrogateKey"
+				},
+				{
+					"name": "ParameterTypeHashColumns"
+				},
+				{
+					"name": "ParameterTypeDistinctRows"
+				},
+				{
+					"name": "ParameterTypeKey"
+				},
+				{
+					"name": "SampleAddAuditColumns"
+				},
+				{
+					"name": "ParameterTypeAddAuditColumns"
+				},
+				{
+					"name": "SampleLocationAddAuditColumns"
+				},
+				{
+					"name": "SampleDetailAddAuditColumns"
+				}
+			],
+			"script": "source(output(\n\t\tAnalyteId as string,\n\t\tAssignedTo as string,\n\t\tCollectionMethod as string,\n\t\tDisplayValue as string,\n\t\tEnteredValue as string,\n\t\tLocationId as string,\n\t\tMaterialId as string,\n\t\tModifiedDate as string,\n\t\tAnalyteDesc as string,\n\t\tProductionDate as string,\n\t\tReplicateNo as string,\n\t\tReportFamily as string,\n\t\tSampleDate as string,\n\t\tSampleDesc as string,\n\t\tSampleId as string,\n\t\tSampleType as string,\n\t\tSourceId as string,\n\t\tPipelineRunTime as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> SourceFromModel\nSourceFromModel derive(HashKey = sha2(256,byNames(['SampleId','AnalyteId','ReplicateNo','AnalyteDesc'])),\n\t\tHashNonKey = sha2(256,byNames(['AssignedTo','DisplayValue','EnteredValue','LocationId','MaterialId','ModifiedDate','ProductionDate','SampleDate','SourceId']))) ~> SampleDetailGenerateHashColumns\nSampleDetailGenerateHashColumns aggregate(groupBy(HashKey),\n\teach(match(!in(['HashKey','SampleDesc','SampleType','ReportFamily','CollectionMethod'],name)), $$ = first($$))) ~> SampleDetailDistinctRows\nSourceFromModel derive(HashKey = sha2(256,byName('AssignedTo'))) ~> SampleLocationGenerateHashColumns\nSampleLocationGenerateHashColumns aggregate(groupBy(HashKey),\n\tAssignedTo = first(AssignedTo)) ~> SampleLocationDistinctRows\nSampleLocationDistinctRows keyGenerate(output(SampleLocationKey as long),\n\tstartAt: 1L) ~> SampleLocationKey\nSourceFromModel derive(HashKey = sha2(256,byNames(['SampleId'])),\n\t\tHashNonKey = sha2(256,byNames(['SampleDesc','SampleType','ReportFamily','CollectionMethod']))) ~> SampleGenerateHashColumns\nSampleGenerateHashColumns aggregate(groupBy(HashKey),\n\teach(match(in(['SampleDesc','SampleType','ReportFamily','CollectionMethod','SampleId','HashNonKey'],name)), $$ = first($$))) ~> SampleDistinctRows\nSampleDistinctRows keyGenerate(output(SampleKey as long),\n\tstartAt: 1L) ~> SampleSurrogateKey\nSourceFromModel derive(HashKey = sha2(256,byName('AnalyteDesc'))) ~> ParameterTypeHashColumns\nParameterTypeHashColumns aggregate(groupBy(HashKey),\n\tAnalyteDesc = first(AnalyteDesc)) ~> ParameterTypeDistinctRows\nParameterTypeDistinctRows keyGenerate(output(ParameterTypeKey as long),\n\tstartAt: 1L) ~> ParameterTypeKey\nSampleSurrogateKey derive(CreatedDate = currentUTC(),\n\t\tModifiedDate = currentUTC()) ~> SampleAddAuditColumns\nParameterTypeKey derive(CreatedDate = currentUTC(),\n\t\tModifiedDate = currentUTC()) ~> ParameterTypeAddAuditColumns\nSampleLocationKey derive(CreatedDate = currentUTC(),\n\t\tModifiedDate = currentUTC()) ~> SampleLocationAddAuditColumns\nSampleDetailDistinctRows derive(CreatedDate = currentUTC(),\n\t\tModifiedDate = currentUTC()) ~> SampleDetailAddAuditColumns\nSampleDetailAddAuditColumns sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['SampleDetail.csv'],\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkSampleDetail\nSampleLocationAddAuditColumns sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['SampleLocation.csv'],\n\tmapColumn(\n\t\tHashKey,\n\t\tAssignedTo,\n\t\tSampleLocationKey\n\t),\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkSampleLocation\nSampleAddAuditColumns sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['Sample.csv'],\n\tmapColumn(\n\t\tSampleId,\n\t\tCollectionMethod,\n\t\tReportFamily,\n\t\tSampleDesc,\n\t\tSampleType,\n\t\tHashKey,\n\t\tHashNonKey,\n\t\tSampleKey\n\t),\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkSample\nParameterTypeAddAuditColumns sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['ParameterType.csv'],\n\tmapColumn(\n\t\tHashKey,\n\t\tAnalyteDesc,\n\t\tParameterTypeKey\n\t),\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkParameterType"
+		}
+	}
+}

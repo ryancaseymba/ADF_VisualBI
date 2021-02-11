@@ -1,0 +1,17 @@
+{
+	"Pipeline": [
+		{
+			"OrchestrationPipelineName": "Base-Orchestration-Dimension-Pipeline",
+			"IngestPipelineName": "Activity-Ingest-Oracle-FullLoad-Pipeline",
+			"FullLoadPipelineName": "",
+			"InputValues": {
+				"SourceTable": "ALL_ANALYTE_D",
+				"SourceSchema": "DW",
+				"ModelTable": "AllAnalyteD",
+				"DataSource": "OIS",
+				"IsDeltaTable": "N",
+				"IngestQuery": "SELECT ANALYTE_ID,ANALYTE_NAME, '{pipelineTime}' as PipelineRunTime FROM DW.ALL_ANALYTE_D"
+			}
+		}
+	]
+}

@@ -1,0 +1,177 @@
+{
+	"name": "OIS_QclSampleResults_WithExistingData_Dataflow",
+	"properties": {
+		"folder": {
+			"name": "IOC"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SourceFromModel"
+				},
+				{
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "ExistingSample"
+				},
+				{
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "ExistingSampleLocation"
+				},
+				{
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "ExistingFact"
+				},
+				{
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "ExistingParameterType"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SinkSampleDetail"
+				},
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SinkSampleLocation"
+				},
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SinkSample"
+				},
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SinkParameterType"
+				}
+			],
+			"transformations": [
+				{
+					"name": "SampleDetailGenerateHashColumns"
+				},
+				{
+					"name": "SampleDetailUnionAll"
+				},
+				{
+					"name": "MaxSkSample"
+				},
+				{
+					"name": "MaxSkSampleLocation"
+				},
+				{
+					"name": "UnalteredRowsSample"
+				},
+				{
+					"name": "SampleDetailDistinctRows"
+				},
+				{
+					"name": "SampleLocationGenerateHashColumns"
+				},
+				{
+					"name": "SampleLocationDistinctRows"
+				},
+				{
+					"name": "SampleLocationNewRows"
+				},
+				{
+					"name": "SampleLocationSk"
+				},
+				{
+					"name": "SampleLocationUpdateSk"
+				},
+				{
+					"name": "SampleLocationUnionAll"
+				},
+				{
+					"name": "UnalteredRowsFact"
+				},
+				{
+					"name": "SampleGenerateHashColumns"
+				},
+				{
+					"name": "SampleDistinctRows"
+				},
+				{
+					"name": "SampleNewRows"
+				},
+				{
+					"name": "SampleSurrogateKey"
+				},
+				{
+					"name": "SampleUpdateSk"
+				},
+				{
+					"name": "SampleUnionAll"
+				},
+				{
+					"name": "SampleUpdatedRows"
+				},
+				{
+					"name": "SampleSelectUpdatedValues"
+				},
+				{
+					"name": "SampleMaxKey"
+				},
+				{
+					"name": "SampleLocationMaxKey"
+				},
+				{
+					"name": "ParameterTypeHashColumns"
+				},
+				{
+					"name": "ParameterTypeDistinctRows"
+				},
+				{
+					"name": "ParameterTypeNewRows"
+				},
+				{
+					"name": "ParameterTypeKey"
+				},
+				{
+					"name": "ParameterTypeMaxKey"
+				},
+				{
+					"name": "ParameterTypeUpdateSk"
+				},
+				{
+					"name": "ParameterTypeUnionAll"
+				},
+				{
+					"name": "ParameterTypeMaxSk"
+				},
+				{
+					"name": "ParameterTypeAuditColumns"
+				}
+			],
+			"script": "source(output(\n\t\tAnalyteId as string,\n\t\tAssignedTo as string,\n\t\tCollectionMethod as string,\n\t\tDisplayValue as string,\n\t\tEnteredValue as string,\n\t\tLocationId as string,\n\t\tMaterialId as string,\n\t\tModifiedDate as string,\n\t\tAnalyteDesc as string,\n\t\tProductionDate as string,\n\t\tReplicateNo as string,\n\t\tReportFamily as string,\n\t\tSampleDate as string,\n\t\tSampleDesc as string,\n\t\tSampleId as string,\n\t\tSampleType as string,\n\t\tSourceId as string,\n\t\tPipelineRunTime as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> SourceFromModel\nsource(output(\n\t\tHashKey as string,\n\t\tHashNonKey as string,\n\t\tSampleKey as string,\n\t\tSampleId as string,\n\t\tSampleDesc as string,\n\t\tSampleType as string,\n\t\tReportFamily as string,\n\t\tCollectionMethod as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> ExistingSample\nsource(output(\n\t\tHashKey as string,\n\t\tHashNonKey as string,\n\t\tAssignedTo as string,\n\t\tSampleLocationKey as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> ExistingSampleLocation\nsource(output(\n\t\tHashKey as string,\n\t\tHashNonKey as string,\n\t\tAnalyteId as string,\n\t\tAssignedTo as string,\n\t\tDisplayValue as string,\n\t\tEnteredValue as string,\n\t\tLocationId as string,\n\t\tMaterialId as string,\n\t\tModifiedDate as string,\n\t\tAnalyteDesc as string,\n\t\tProductionDate as string,\n\t\tReplicateNo as string,\n\t\tSampleDate as string,\n\t\tSampleId as string,\n\t\tSourceId as string,\n\t\tPipelineRunTime as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> ExistingFact\nsource(output(\n\t\tAnalyteDesc as string,\n\t\tParameterTypeKey as string,\n\t\tHashKey as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> ExistingParameterType\nSourceFromModel derive(HashKey = sha2(256,byNames(['SampleId','AnalyteId','ReplicateNo','AnalyteDesc'])),\n\t\tHashNonKey = sha2(256,byNames(['AssignedTo','DisplayValue','EnteredValue','LocationId','MaterialId','ModifiedDate','ProductionDate','SampleDate','SourceId']))) ~> SampleDetailGenerateHashColumns\nSampleDetailDistinctRows, UnalteredRowsFact union(byName: true)~> SampleDetailUnionAll\nExistingSample aggregate(MaxKey = max(toInteger(SampleKey))) ~> MaxSkSample\nExistingSampleLocation aggregate(MaxKey = max(toInteger(SampleLocationKey))) ~> MaxSkSampleLocation\nExistingSample, SampleGenerateHashColumns exists(ExistingSample@HashKey == SampleGenerateHashColumns@HashKey,\n\tnegate:true,\n\tbroadcast: 'auto')~> UnalteredRowsSample\nSampleDetailGenerateHashColumns aggregate(groupBy(HashKey),\n\teach(match(!in(['HashKey','SampleDesc','SampleType','ReportFamily','CollectionMethod'],name)), $$ = first($$))) ~> SampleDetailDistinctRows\nSourceFromModel derive(HashKey = sha2(256,byName('AssignedTo'))) ~> SampleLocationGenerateHashColumns\nSampleLocationGenerateHashColumns aggregate(groupBy(HashKey),\n\tAssignedTo = first(AssignedTo)) ~> SampleLocationDistinctRows\nSampleLocationDistinctRows, ExistingSampleLocation exists(SampleLocationDistinctRows@HashKey == ExistingSampleLocation@HashKey,\n\tnegate:true,\n\tbroadcast: 'auto')~> SampleLocationNewRows\nSampleLocationNewRows keyGenerate(output(Key as long),\n\tstartAt: 1L) ~> SampleLocationSk\nSampleLocationMaxKey derive(SampleLocationKey = toString(add(Key,MaxKey))) ~> SampleLocationUpdateSk\nSampleLocationUpdateSk, ExistingSampleLocation union(byName: true)~> SampleLocationUnionAll\nExistingFact, SampleDetailGenerateHashColumns exists(ExistingFact@HashKey == SampleDetailGenerateHashColumns@HashKey,\n\tnegate:true,\n\tbroadcast: 'auto')~> UnalteredRowsFact\nSourceFromModel derive(HashKey = sha2(256,byNames(['SampleId'])),\n\t\tHashNonKey = sha2(256,byNames(['SampleDesc','SampleType','ReportFamily','CollectionMethod']))) ~> SampleGenerateHashColumns\nSampleGenerateHashColumns aggregate(groupBy(HashKey),\n\teach(match(in(['SampleDesc','SampleType','ReportFamily','CollectionMethod','SampleId','HashNonKey'],name)), $$ = first($$))) ~> SampleDistinctRows\nSampleDistinctRows, ExistingSample exists(SampleDistinctRows@HashKey == ExistingSample@HashKey,\n\tnegate:true,\n\tbroadcast: 'auto')~> SampleNewRows\nSampleNewRows keyGenerate(output(Key as long),\n\tstartAt: 1L) ~> SampleSurrogateKey\nSampleMaxKey derive(SampleKey = toString(add(Key,MaxKey))) ~> SampleUpdateSk\nSampleUpdateSk, UnalteredRowsSample, SampleSelectUpdatedValues union(byName: true)~> SampleUnionAll\nSampleDistinctRows, ExistingSample join(SampleDistinctRows@HashKey == ExistingSample@HashKey,\n\tjoinType:'inner',\n\tbroadcast: 'auto')~> SampleUpdatedRows\nSampleUpdatedRows select(mapColumn(\n\t\tSampleId = SampleDistinctRows@SampleId,\n\t\tCollectionMethod = SampleDistinctRows@CollectionMethod,\n\t\tReportFamily = SampleDistinctRows@ReportFamily,\n\t\tSampleDesc = SampleDistinctRows@SampleDesc,\n\t\tSampleType = SampleDistinctRows@SampleType,\n\t\tHashKey = SampleDistinctRows@HashKey,\n\t\tHashNonKey = SampleDistinctRows@HashNonKey,\n\t\tSampleKey\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SampleSelectUpdatedValues\nSampleSurrogateKey, MaxSkSample join(HashKey == toString(MaxKey) || true(),\n\tjoinType:'cross',\n\tbroadcast: 'auto')~> SampleMaxKey\nSampleLocationSk, MaxSkSampleLocation join(HashKey == toString(MaxKey) || true(),\n\tjoinType:'cross',\n\tbroadcast: 'auto')~> SampleLocationMaxKey\nSourceFromModel derive(HashKey = sha2(256,byName('AnalyteDesc'))) ~> ParameterTypeHashColumns\nParameterTypeHashColumns aggregate(groupBy(HashKey),\n\tAnalyteDesc = first(AnalyteDesc)) ~> ParameterTypeDistinctRows\nParameterTypeDistinctRows, ExistingParameterType exists(ParameterTypeDistinctRows@HashKey == ExistingParameterType@HashKey,\n\tnegate:true,\n\tbroadcast: 'auto')~> ParameterTypeNewRows\nParameterTypeNewRows keyGenerate(output(Key as long),\n\tstartAt: 1L) ~> ParameterTypeKey\nParameterTypeKey, ParameterTypeMaxSk join(HashKey == toString(MaxKey) || true(),\n\tjoinType:'cross',\n\tbroadcast: 'auto')~> ParameterTypeMaxKey\nParameterTypeMaxKey derive(ParameterTypeKey = toString(add(Key,MaxKey))) ~> ParameterTypeUpdateSk\nParameterTypeAuditColumns, ExistingParameterType union(byName: true)~> ParameterTypeUnionAll\nExistingParameterType aggregate(MaxKey = max(toInteger(ParameterTypeKey))) ~> ParameterTypeMaxSk\nParameterTypeUpdateSk derive(CreatedDate = toString(currentUTC()),\n\t\tModifiedDate = toString(currentUTC())) ~> ParameterTypeAuditColumns\nSampleDetailUnionAll sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['SampleDetail.csv'],\n\tmapColumn(\n\t\tHashKey,\n\t\tAnalyteId,\n\t\tAssignedTo,\n\t\tDisplayValue,\n\t\tEnteredValue,\n\t\tLocationId,\n\t\tMaterialId,\n\t\tModifiedDate,\n\t\tAnalyteDesc,\n\t\tProductionDate,\n\t\tReplicateNo,\n\t\tSampleDate,\n\t\tSampleId,\n\t\tSourceId,\n\t\tPipelineRunTime,\n\t\tHashNonKey\n\t),\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkSampleDetail\nSampleLocationUnionAll sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['SampleLocation.csv'],\n\tmapColumn(\n\t\tHashKey,\n\t\tAssignedTo,\n\t\tSampleLocationKey,\n\t\tHashNonKey\n\t),\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkSampleLocation\nSampleUnionAll sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['Sample.csv'],\n\tmapColumn(\n\t\tSampleId,\n\t\tCollectionMethod,\n\t\tReportFamily,\n\t\tSampleDesc,\n\t\tSampleType,\n\t\tHashKey,\n\t\tHashNonKey,\n\t\tSampleKey\n\t),\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkSample\nParameterTypeUnionAll sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['ParameterType.csv'],\n\tmapColumn(\n\t\tHashKey,\n\t\tAnalyteDesc,\n\t\tParameterTypeKey\n\t),\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkParameterType"
+		}
+	}
+}

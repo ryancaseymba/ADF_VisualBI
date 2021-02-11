@@ -1,0 +1,130 @@
+{
+	"name": "OIS_QclLostProduction_WithExistingData_Dataflow",
+	"properties": {
+		"folder": {
+			"name": "IOC"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SourceFromModel"
+				},
+				{
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "ExistingProduct"
+				},
+				{
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "ExistingFact"
+				},
+				{
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "ExistingPeriodType"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SinkFact"
+				},
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SinkProduct"
+				},
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SinkPeriodType"
+				}
+			],
+			"transformations": [
+				{
+					"name": "FactGenerateHashColumns"
+				},
+				{
+					"name": "FactUnionAll"
+				},
+				{
+					"name": "MaxSkProduct"
+				},
+				{
+					"name": "FactDistinctRows"
+				},
+				{
+					"name": "ProductGenerateHashColumns"
+				},
+				{
+					"name": "ProductDistinctRows"
+				},
+				{
+					"name": "ProductNewRows"
+				},
+				{
+					"name": "ProductSk"
+				},
+				{
+					"name": "ProductUpdateSk"
+				},
+				{
+					"name": "ProductUnionAll"
+				},
+				{
+					"name": "UnalteredRowsFact"
+				},
+				{
+					"name": "ProductMaxKey"
+				},
+				{
+					"name": "PeriodTypeHashColumns"
+				},
+				{
+					"name": "PeriodTypeDistinctRows"
+				},
+				{
+					"name": "PeriodTypeNewRows"
+				},
+				{
+					"name": "PeriodTypeSk"
+				},
+				{
+					"name": "PeriodTypeMaxKey"
+				},
+				{
+					"name": "PeriodTypeUpdateSk"
+				},
+				{
+					"name": "PeriodTypeUnionAll"
+				},
+				{
+					"name": "PeriodTypeMaxSk"
+				},
+				{
+					"name": "PeriodTypeUnalteredRows"
+				}
+			],
+			"script": "source(output(\n\t\tANNOTATION as string,\n\t\tEND_TIME as string,\n\t\tENG_LOST_PRODUCTION as string,\n\t\tENG_PRODUCTION_UOM as string,\n\t\tHIGH_RATE as string,\n\t\tLOCATION_ID as string,\n\t\tLOW_RATE as string,\n\t\tPERIOD_RATE as string,\n\t\tPERIOD_TYPE as string,\n\t\tPRODUCT as string,\n\t\tRAW_LOST_PRODUCTION as string,\n\t\tREASON_ID as string,\n\t\tSHIFT_ID as string,\n\t\tSTART_TIME as string,\n\t\tTIMESPAN_MINUTES as string,\n\t\tUNIT_ID as string,\n\t\tPIPELINERUNTIME as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> SourceFromModel\nsource(output(\n\t\tHashKey as string,\n\t\tPRODUCT as string,\n\t\tProductSkId as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> ExistingProduct\nsource(output(\n\t\tHashKey as string,\n\t\tHashNonKey as string,\n\t\tANNOTATION as string,\n\t\tEND_TIME as string,\n\t\tENG_LOST_PRODUCTION as string,\n\t\tENG_PRODUCTION_UOM as string,\n\t\tHIGH_RATE as string,\n\t\tLOCATION_ID as string,\n\t\tLOW_RATE as string,\n\t\tPERIOD_RATE as string,\n\t\tPERIOD_TYPE as string,\n\t\tPRODUCT as string,\n\t\tRAW_LOST_PRODUCTION as string,\n\t\tREASON_ID as string,\n\t\tSHIFT_ID as string,\n\t\tSTART_TIME as string,\n\t\tTIMESPAN_MINUTES as string,\n\t\tUNIT_ID as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> ExistingFact\nsource(output(\n\t\tHashKey as string,\n\t\tPERIOD_TYPE as string,\n\t\tPeriodTypeSkId as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> ExistingPeriodType\nSourceFromModel derive(HashKey = sha2(256,byNames(['PERIOD_TYPE','REASON_ID','END_TIME','START_TIME','UNIT_ID'])),\n\t\tHashNonKey = sha2(256,byNames(['ANNOTATION','ENG_LOST_PRODUCTION','ENG_PRODUCTION_UOM','HIGH_RATE','LOCATION_ID','LOW_RATE','PERIOD_RATE','RAW_LOST_PRODUCTION','REASON_ID','SHIFT_ID','TIMESPAN_MINUTES']))) ~> FactGenerateHashColumns\nFactDistinctRows, UnalteredRowsFact union(byName: true)~> FactUnionAll\nExistingProduct aggregate(MaxKey = max(toInteger(ProductSkId))) ~> MaxSkProduct\nFactGenerateHashColumns aggregate(groupBy(HashKey),\n\teach(match(!in(['HashKey','PIPELINERUNTIME'],name)), $$ = first($$))) ~> FactDistinctRows\nSourceFromModel derive(HashKey = sha2(256,byName('PRODUCT'))) ~> ProductGenerateHashColumns\nProductGenerateHashColumns aggregate(groupBy(HashKey),\n\tPRODUCT = first(PRODUCT)) ~> ProductDistinctRows\nProductDistinctRows, ExistingProduct exists(ProductDistinctRows@HashKey == ExistingProduct@HashKey,\n\tnegate:true,\n\tbroadcast: 'auto')~> ProductNewRows\nProductNewRows keyGenerate(output(ProductSkId as long),\n\tstartAt: 1L) ~> ProductSk\nProductMaxKey derive(ProductSkId = toString(add(ProductSkId,iifNull(MaxKey,0)))) ~> ProductUpdateSk\nProductUpdateSk, ExistingProduct union(byName: true)~> ProductUnionAll\nExistingFact, FactGenerateHashColumns exists(ExistingFact@HashKey == FactGenerateHashColumns@HashKey,\n\tnegate:true,\n\tbroadcast: 'auto')~> UnalteredRowsFact\nProductSk, MaxSkProduct join(HashKey == toString(MaxKey) || true(),\n\tjoinType:'cross',\n\tbroadcast: 'auto')~> ProductMaxKey\nSourceFromModel derive(HashKey = sha2(256,byName('PERIOD_TYPE'))) ~> PeriodTypeHashColumns\nPeriodTypeHashColumns aggregate(groupBy(HashKey),\n\tPERIOD_TYPE = first(PERIOD_TYPE)) ~> PeriodTypeDistinctRows\nPeriodTypeDistinctRows, ExistingPeriodType exists(PeriodTypeDistinctRows@HashKey == ExistingPeriodType@HashKey,\n\tnegate:true,\n\tbroadcast: 'auto')~> PeriodTypeNewRows\nPeriodTypeNewRows keyGenerate(output(PeriodTypeSkId as long),\n\tstartAt: 1L) ~> PeriodTypeSk\nPeriodTypeSk, PeriodTypeMaxSk join(HashKey == toString(MaxKey) || true(),\n\tjoinType:'cross',\n\tbroadcast: 'auto')~> PeriodTypeMaxKey\nPeriodTypeMaxKey derive(PeriodTypeSkId = toString(add(PeriodTypeSkId,iifNull(MaxKey,0)))) ~> PeriodTypeUpdateSk\nPeriodTypeUpdateSk, ExistingPeriodType union(byName: true)~> PeriodTypeUnionAll\nExistingPeriodType aggregate(MaxKey = max(toInteger(PeriodTypeSkId))) ~> PeriodTypeMaxSk\nExistingPeriodType, PeriodTypeHashColumns exists(ExistingPeriodType@HashKey == PeriodTypeHashColumns@HashKey,\n\tnegate:true,\n\tbroadcast: 'auto')~> PeriodTypeUnalteredRows\nFactUnionAll sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['LostProduction.csv'],\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkFact\nProductUnionAll sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['Product.csv'],\n\tmapColumn(\n\t\tHashKey,\n\t\tPRODUCT,\n\t\tProductSkId\n\t),\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkProduct\nPeriodTypeUnionAll sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['PeriodType.csv'],\n\tmapColumn(\n\t\tHashKey,\n\t\tPERIOD_TYPE,\n\t\tPeriodTypeSkId\n\t),\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkPeriodType"
+		}
+	}
+}

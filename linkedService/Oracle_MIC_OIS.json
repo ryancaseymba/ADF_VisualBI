@@ -1,0 +1,23 @@
+{
+	"name": "Oracle_MIC_OIS",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "Oracle",
+		"typeProperties": {
+			"connectionString": "host=mo1u1orapdb06;port=1521;serviceName=PSITE;user id=DWUSER",
+			"password": {
+				"type": "AzureKeyVaultSecret",
+				"store": {
+					"referenceName": "AKV_MIC",
+					"type": "LinkedServiceReference"
+				},
+				"secretName": "OIS-Password"
+			}
+		},
+		"connectVia": {
+			"referenceName": "ADF-IR-01",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}

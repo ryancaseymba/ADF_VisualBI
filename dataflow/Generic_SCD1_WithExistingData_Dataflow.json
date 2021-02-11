@@ -1,0 +1,65 @@
+{
+	"name": "Generic_SCD1_WithExistingData_Dataflow",
+	"properties": {
+		"folder": {
+			"name": "Common"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "Source"
+				},
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "ExistingData"
+				}
+			],
+			"sinks": [
+				{
+					"name": "FinalSink"
+				}
+			],
+			"transformations": [
+				{
+					"name": "NewAndUpdatedRows"
+				},
+				{
+					"name": "AddHashInput"
+				},
+				{
+					"name": "GetMaxSurrogateKey"
+				},
+				{
+					"name": "AddKey"
+				},
+				{
+					"name": "JoinWithMaxSurrogateKey"
+				},
+				{
+					"name": "AddDimensionColumns"
+				},
+				{
+					"name": "LookupUpdatedValues"
+				},
+				{
+					"name": "DropUnwantedColsInput"
+				},
+				{
+					"name": "DropUnwantedExisting"
+				},
+				{
+					"name": "UnionAllData"
+				}
+			],
+			"script": "parameters{\n\tDimTable as string,\n\tKeyColumns as string,\n\tSKColumn as string,\n\tNonKeyColumns as string\n}\nsource(allowSchemaDrift: true,\n\tvalidateSchema: false) ~> Source\nsource(allowSchemaDrift: true,\n\tvalidateSchema: false) ~> ExistingData\nAddHashInput, ExistingData exists(HashKey == toString(byName('HashKey'))\n\t&& HashNonKey == toString(byName('HashNonKey')),\n\tnegate:true,\n\tbroadcast: 'auto')~> NewAndUpdatedRows\nSource derive(HashKey = sha2(256,byNames(split($KeyColumns,'-'))),\n\t\tHashNonKey = sha2(256,byNames(split($NonKeyColumns,'-')))) ~> AddHashInput\nExistingData aggregate(MaxSurrogateKey = max(toInteger(byName($SKColumn)))) ~> GetMaxSurrogateKey\nNewAndUpdatedRows keyGenerate(output(Key as long),\n\tstartAt: 1L) ~> AddKey\nAddKey, GetMaxSurrogateKey join(Key == MaxSurrogateKey || true(),\n\tjoinType:'cross',\n\tbroadcast: 'auto')~> JoinWithMaxSurrogateKey\nJoinWithMaxSurrogateKey derive(Key = toString(Key + MaxSurrogateKey)) ~> AddDimensionColumns\nExistingData, NewAndUpdatedRows lookup(HashKey == AddHashInput@HashKey,\n\tmultiple: false,\n\tpickup: 'any',\n\tbroadcast: 'auto')~> LookupUpdatedValues\nAddDimensionColumns select(mapColumn(\n\t\teach(match(!in(['ColumnsHash','MaxSurrogateKey','PipelineRunTime'],name)))\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> DropUnwantedColsInput\nLookupUpdatedValues select(mapColumn(\n\t\teach(match(!in(['ColumnsHash','MaxSurrogateKey'],name)&&stream!='NewAndUpdatedRows'))\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> DropUnwantedExisting\nDropUnwantedExisting, DropUnwantedColsInput union(byName: true)~> UnionAllData\nUnionAllData sink(filePattern:($SinkPattern),\n\ttruncate: true,\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> FinalSink"
+		}
+	}
+}

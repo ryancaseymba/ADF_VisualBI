@@ -1,0 +1,15 @@
+{
+	"name": "SQL_MIC_Azure",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "AzureSqlDatabase",
+		"typeProperties": {
+			"connectionString": "Integrated Security=False;Encrypt=True;Connection Timeout=30;Data Source=sqlserver-mic-d-01.database.windows.net;Initial Catalog=sqldb-mic-d-01"
+		},
+		"connectVia": {
+			"referenceName": "ADF-IR-01",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}

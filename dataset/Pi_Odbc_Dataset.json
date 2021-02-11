@@ -1,0 +1,12 @@
+{
+	"name": "Pi_Odbc_Dataset",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "PI_MIC_OLEDBEnt",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "OdbcTable",
+		"schema": []
+	}
+}

@@ -1,0 +1,51 @@
+{
+	"Pipeline": [
+		{
+			"ModelPipelineName": "Activity-DataLake-DataLake-Copy-Pipeline",
+			"InputValues": {
+				"SourceTable": "ALL_ANALYTE_D",
+				"SourceSchema": "DW",
+				"DataSource": "OIS",
+				"ModelTable": "AllAnalyteD",
+				"EnhanceTable": "Analyte",
+				"ModelDeltaColumn": "",
+				"KeyColumns": "AnalyteId",
+				"Translator": {
+					"Type": "TabularTranslator",
+					"Mappings": [
+						{
+							"Source": {
+								"Name": "ANALYTE_ID",
+								"Type": "String"
+							},
+							"Sink": {
+								"Name": "AnalyteId",
+								"Type": "String"
+							}
+						},
+						{
+							"Source": {
+								"Name": "ANALYTE_NAME",
+								"Type": "String"
+							},
+							"Sink": {
+								"Name": "AnalyteName",
+								"Type": "String"
+							}
+						},
+						{
+							"Source": {
+								"Name": "PIPELINERUNTIME",
+								"Type": "String"
+							},
+							"Sink": {
+								"Name": "PipelineRunTime",
+								"Type": "String"
+							}
+						}
+					]
+				}
+			}
+		}
+	]
+}

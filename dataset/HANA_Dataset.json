@@ -1,0 +1,12 @@
+{
+	"name": "HANA_Dataset",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "HANA_MIC",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "SapHanaTable",
+		"schema": []
+	}
+}

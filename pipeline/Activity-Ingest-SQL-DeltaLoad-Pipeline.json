@@ -1,0 +1,153 @@
+{
+	"name": "Activity-Ingest-SQL-DeltaLoad-Pipeline",
+	"properties": {
+		"activities": [
+			{
+				"name": "Copy SQL Data",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Get Max Timestamp",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SqlServerSource",
+						"sqlReaderQuery": {
+							"value": "@concat(replace(pipeline().parameters.SourceQuery,'{pipelineTime}',pipeline().TriggerTime),' where ',pipeline().parameters.DeltaColumn,' >''',addToTime(string(activity('Get Max Timestamp').output.firstRow['Delta']),if(equals(pipeline().parameters.DeltaOffset,''),0,int(pipeline().parameters.DeltaOffset)),if(equals(pipeline().parameters.DeltaOffsetUnit,''),'minute',pipeline().parameters.DeltaOffsetUnit)),'''')",
+							"type": "Expression"
+						},
+						"queryTimeout": "02:00:00",
+						"partitionOption": "None"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".txt"
+						}
+					},
+					"enableStaging": false
+				},
+				"inputs": [
+					{
+						"referenceName": "DMS_SQL_Dataset",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference",
+						"parameters": {
+							"ContainerName": {
+								"value": "@pipeline().parameters.DataContainer",
+								"type": "Expression"
+							},
+							"FilePath": {
+								"value": "@pipeline().parameters.TargetFilePath",
+								"type": "Expression"
+							},
+							"FileName": {
+								"value": "@pipeline().parameters.TargetFileName",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			},
+			{
+				"name": "Get Max Timestamp",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "DelimitedTextSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": false,
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference",
+						"parameters": {
+							"ContainerName": {
+								"value": "@pipeline().parameters.DataContainer",
+								"type": "Expression"
+							},
+							"FilePath": {
+								"value": "@pipeline().parameters.WatermarkFilePath",
+								"type": "Expression"
+							},
+							"FileName": {
+								"value": "@replace(pipeline().parameters.TargetFileName,'.','_watermark.')",
+								"type": "Expression"
+							}
+						}
+					}
+				}
+			}
+		],
+		"parameters": {
+			"SourceQuery": {
+				"type": "string"
+			},
+			"TargetFilePath": {
+				"type": "string"
+			},
+			"TargetFileName": {
+				"type": "string"
+			},
+			"DeltaColumn": {
+				"type": "string"
+			},
+			"DeltaOffsetUnit": {
+				"type": "string",
+				"defaultValue": " "
+			},
+			"DeltaOffset": {
+				"type": "int",
+				"defaultValue": 0
+			},
+			"WatermarkFilePath": {
+				"type": "string"
+			},
+			"DataContainer": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "Activity"
+		},
+		"annotations": []
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

@@ -1,0 +1,654 @@
+{
+	"name": "Base-Orchestration-Dimension-Pipeline",
+	"properties": {
+		"activities": [
+			{
+				"name": "Fetch Model Info",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Switch KickOff Ingest Activity",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobStorageReadSettings",
+							"recursive": true
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "Config_Blob_Dataset",
+						"type": "DatasetReference",
+						"parameters": {
+							"FilePath": {
+								"value": "@concat('ioc/model/',pipeline().parameters.IngestConfig.InputValues.DataSource)",
+								"type": "Expression"
+							},
+							"FileName": {
+								"value": "@concat(pipeline().parameters.IngestConfig.InputValues.ModelTable,'.json')",
+								"type": "Expression"
+							},
+							"ContainerName": {
+								"value": "@pipeline().parameters.ModelConfigContainer",
+								"type": "Expression"
+							}
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Switch KickOff Ingest Activity",
+				"type": "Switch",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"on": {
+						"value": "@if(and(equals(pipeline().parameters.FullLoadAllTables,true),equals(pipeline().parameters.IngestConfig.InputValues.IsDeltaTable,'Y')),pipeline().parameters.IngestConfig.FullLoadPipelineName,pipeline().parameters.IngestConfig.IngestPipelineName)",
+						"type": "Expression"
+					},
+					"cases": [
+						{
+							"value": "Activity-Ingest-Oracle-FullLoad-Pipeline",
+							"activities": [
+								{
+									"name": "KickOff Activity Ingest Oracle FullLoad",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Activity-Ingest-Oracle-FullLoad-Pipeline",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"SourceQuery": {
+												"value": "@replace(pipeline().parameters.IngestConfig.InputValues.IngestQuery,'{pipelineTime}',pipeline().TriggerTime)",
+												"type": "Expression"
+											},
+											"TargetFilePath": {
+												"value": "@concat('ioc/',pipeline().parameters.IngestConfig.InputValues.DataSource,'/',pipeline().parameters.IngestConfig.InputValues.SourceSchema,'/',pipeline().parameters.IngestConfig.InputValues.SourceTable,'/',pipeline().parameters.Year,'/',pipeline().parameters.Month,'/',pipeline().parameters.Day,'/h',pipeline().parameters.hour,'/m',pipeline().parameters.Minute)",
+												"type": "Expression"
+											},
+											"TargetFileName": {
+												"value": "@concat(pipeline().parameters.IngestConfig.InputValues.SourceTable,'.csv')",
+												"type": "Expression"
+											},
+											"DataContainer": {
+												"value": "@pipeline().parameters.IngestDataContainer",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						},
+						{
+							"value": "Activity-Ingest-Oracle-DeltaLoad-Pipeline",
+							"activities": [
+								{
+									"name": "KickOff Activity Ingest Oracle DeltaLoad",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Activity-Ingest-Oracle-DeltaLoad-Pipeline",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"SourceQuery": {
+												"value": "@replace(pipeline().parameters.IngestConfig.InputValues.IngestQuery,'{pipelineTime}',pipeline().TriggerTime)",
+												"type": "Expression"
+											},
+											"TargetFilePath": {
+												"value": "@concat('ioc/',pipeline().parameters.IngestConfig.InputValues.DataSource,'/',pipeline().parameters.IngestConfig.InputValues.SourceSchema,'/',pipeline().parameters.IngestConfig.InputValues.SourceTable,'/',pipeline().parameters.Year,'/',pipeline().parameters.Month,'/',pipeline().parameters.Day,'/h',pipeline().parameters.hour,'/m',pipeline().parameters.Minute)",
+												"type": "Expression"
+											},
+											"TargetFileName": {
+												"value": "@concat(pipeline().parameters.IngestConfig.InputValues.SourceTable,'.csv')",
+												"type": "Expression"
+											},
+											"DeltaColumn": {
+												"value": "@pipeline().parameters.IngestConfig.InputValues.DeltaColumn",
+												"type": "Expression"
+											},
+											"WatermarkFilePath": {
+												"value": "@concat('ioc/',pipeline().parameters.IngestConfig.InputValues.DataSource,'/',pipeline().parameters.IngestConfig.InputValues.SourceSchema,'/',pipeline().parameters.IngestConfig.InputValues.SourceTable)",
+												"type": "Expression"
+											},
+											"DeltaOffsetUnit": {
+												"value": "@pipeline().parameters.IngestConfig.InputValues.DeltaOffsetUnit",
+												"type": "Expression"
+											},
+											"DeltaOffset": {
+												"value": "@pipeline().parameters.IngestConfig.InputValues.DeltaOffset",
+												"type": "Expression"
+											},
+											"DataContainer": "ingest"
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"name": "Switch KickOff Model Activity",
+				"type": "Switch",
+				"dependsOn": [
+					{
+						"activity": "Fetch Model Info",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"on": {
+						"value": "@activity('Fetch Model Info').output.value[0].Pipeline[0].ModelPipelineName",
+						"type": "Expression"
+					},
+					"cases": [
+						{
+							"value": "Activity-DataLake-DataLake-Copy-Pipeline",
+							"activities": [
+								{
+									"name": "KickOff Activity DataLake Copy Pipeline",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Activity-DataLake-DataLake-Copy-Pipeline",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"SourceContainer": {
+												"value": "@pipeline().parameters.IngestDataContainer",
+												"type": "Expression"
+											},
+											"SourceFilePath": {
+												"value": "@concat('ioc/',pipeline().parameters.IngestConfig.InputValues.DataSource,'/',pipeline().parameters.IngestConfig.InputValues.SourceSchema,'/',pipeline().parameters.IngestConfig.InputValues.SourceTable,'/',pipeline().parameters.Year,'/',pipeline().parameters.Month,'/',pipeline().parameters.Day,'/h',pipeline().parameters.hour,'/m',pipeline().parameters.Minute)",
+												"type": "Expression"
+											},
+											"SourceFileName": {
+												"value": "@concat(pipeline().parameters.IngestConfig.InputValues.SourceTable,'.csv')",
+												"type": "Expression"
+											},
+											"TargetContainer": {
+												"value": "@pipeline().parameters.ModelDataContainer",
+												"type": "Expression"
+											},
+											"TargetFilePath": {
+												"value": "@concat('ioc/',pipeline().parameters.IngestConfig.InputValues.DataSource,'/',activity('Fetch Model Info').output.value[0].Pipeline[0].InputValues.ModelTable,'/',pipeline().parameters.Year,'/',pipeline().parameters.Month,'/',pipeline().parameters.Day)",
+												"type": "Expression"
+											},
+											"TargetFileName": {
+												"value": "@concat(activity('Fetch Model Info').output.value[0].Pipeline[0].InputValues.ModelTable,'.csv')",
+												"type": "Expression"
+											},
+											"ColumnMapping": {
+												"value": "@activity('Fetch Model Info').output.value[0].Pipeline[0].InputValues.Translator",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						},
+						{
+							"value": "Activity-Model-Dedup-Pipeline",
+							"activities": [
+								{
+									"name": "KickOff Activity Model Dedup Pipeline",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Activity-Model-Dedup-Pipeline",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"IngestFilePath": {
+												"value": "@concat('ioc/',pipeline().parameters.IngestConfig.InputValues.DataSource,'/',pipeline().parameters.IngestConfig.InputValues.SourceSchema,'/',pipeline().parameters.IngestConfig.InputValues.SourceTable,'/',pipeline().parameters.Year,'/',pipeline().parameters.Month,'/',pipeline().parameters.Day,'/h',pipeline().parameters.hour,'/m',pipeline().parameters.Minute)",
+												"type": "Expression"
+											},
+											"ModelFilePath": {
+												"value": "@concat('ioc/',pipeline().parameters.IngestConfig.InputValues.DataSource,'/',activity('Fetch Model Info').output.value[0].Pipeline[0].InputValues.ModelTable,'/',pipeline().parameters.Year,'/',pipeline().parameters.Month,'/',pipeline().parameters.Day)",
+												"type": "Expression"
+											},
+											"ModelMinuteFilePath": {
+												"value": "@concat('ioc/',pipeline().parameters.IngestConfig.InputValues.DataSource,'/',activity('Fetch Model Info').output.value[0].Pipeline[0].InputValues.ModelTable,'/',pipeline().parameters.Year,'/',pipeline().parameters.Month,'/',pipeline().parameters.Day,'/h',pipeline().parameters.hour,'/m',pipeline().parameters.Minute)",
+												"type": "Expression"
+											},
+											"WatermarkFilePath": {
+												"value": "@concat('ioc/',pipeline().parameters.IngestConfig.InputValues.DataSource,'/',pipeline().parameters.IngestConfig.InputValues.SourceSchema,'/',pipeline().parameters.IngestConfig.InputValues.SourceTable)",
+												"type": "Expression"
+											},
+											"ModelTable": {
+												"value": "@concat(activity('Fetch Model Info').output.value[0].Pipeline[0].InputValues.ModelTable,'.csv')",
+												"type": "Expression"
+											},
+											"IsDeltaTable": {
+												"value": "@pipeline().parameters.IngestConfig.InputValues.IsDeltaTable",
+												"type": "Expression"
+											},
+											"DeltaColumn": {
+												"value": "@pipeline().parameters.IngestConfig.InputValues.DeltaColum",
+												"type": "Expression"
+											},
+											"ModelDeltaColumn": {
+												"value": "@activity('Fetch Model Info').output.value[0].Pipeline[0].InputValues.ModelDeltaColumn",
+												"type": "Expression"
+											},
+											"IngestDataContainer": {
+												"value": "@pipeline().parameters.IngestDataContainer",
+												"type": "Expression"
+											},
+											"ModelDataContainer": {
+												"value": "@pipeline().parameters.ModelDataContainer",
+												"type": "Expression"
+											},
+											"ColumnMapping": {
+												"value": "@activity('Fetch Model Info').output.value[0].Pipeline[0].InputValues.Translator",
+												"type": "Expression"
+											},
+											"SourceTable": {
+												"value": "@concat(pipeline().parameters.IngestConfig.InputValues.SourceTable,'.csv')",
+												"type": "Expression"
+											},
+											"KeyColumns": {
+												"value": "@activity('Fetch Model Info').output.value[0].Pipeline[0].InputValues.KeyColumns",
+												"type": "Expression"
+											},
+											"FullLoadAllTables": {
+												"value": "@pipeline().parameters.FullLoadAllTables",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						},
+						{
+							"value": "Activity-Model-Copy-Watermark-Pipeline",
+							"activities": [
+								{
+									"name": "KickOff Activity Model Copy Watermark Pipeline",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Activity-Model-Copy-Watermark-Pipeline",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"IngestFilePath": {
+												"value": "@concat('ioc/',pipeline().parameters.IngestConfig.InputValues.DataSource,'/',pipeline().parameters.IngestConfig.InputValues.SourceSchema,'/',pipeline().parameters.IngestConfig.InputValues.SourceTable,'/',pipeline().parameters.Year,'/',pipeline().parameters.Month,'/',pipeline().parameters.Day,'/h',pipeline().parameters.hour,'/m',pipeline().parameters.Minute)",
+												"type": "Expression"
+											},
+											"ModelFilePath": {
+												"value": "@concat('ioc/',pipeline().parameters.IngestConfig.InputValues.DataSource,'/',activity('Fetch Model Info').output.value[0].Pipeline[0].InputValues.ModelTable,'/',pipeline().parameters.Year,'/',pipeline().parameters.Month,'/',pipeline().parameters.Day)",
+												"type": "Expression"
+											},
+											"WatermarkFilePath": {
+												"value": "@concat('ioc/',pipeline().parameters.IngestConfig.InputValues.DataSource,'/',pipeline().parameters.IngestConfig.InputValues.SourceSchema,'/',pipeline().parameters.IngestConfig.InputValues.SourceTable)",
+												"type": "Expression"
+											},
+											"ModelTable": {
+												"value": "@concat(activity('Fetch Model Info').output.value[0].Pipeline[0].InputValues.ModelTable,'.csv')",
+												"type": "Expression"
+											},
+											"IsDeltaTable": {
+												"value": "@pipeline().parameters.IngestConfig.InputValues.IsDeltaTable",
+												"type": "Expression"
+											},
+											"DeltaColumn": {
+												"value": "@pipeline().parameters.IngestConfig.InputValues.DeltaColumn",
+												"type": "Expression"
+											},
+											"ModelDeltaColumn": {
+												"value": "@activity('Fetch Model Info').output.value[0].Pipeline[0].InputValues.ModelDeltaColumn",
+												"type": "Expression"
+											},
+											"IngestDataContainer": {
+												"value": "@pipeline().parameters.IngestDataContainer",
+												"type": "Expression"
+											},
+											"ModelDataContainer": {
+												"value": "@pipeline().parameters.ModelDataContainer",
+												"type": "Expression"
+											},
+											"ColumnMapping": {
+												"value": "@activity('Fetch Model Info').output.value[0].Pipeline[0].InputValues.Translator",
+												"type": "Expression"
+											},
+											"SourceTable": {
+												"value": "@concat(pipeline().parameters.IngestConfig.InputValues.SourceTable,'.csv')",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"name": "Fetch Enhance Info",
+				"type": "Lookup",
+				"dependsOn": [
+					{
+						"activity": "Switch KickOff Model Activity",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "JsonSource",
+						"storeSettings": {
+							"type": "AzureBlobStorageReadSettings",
+							"recursive": true
+						},
+						"formatSettings": {
+							"type": "JsonReadSettings"
+						}
+					},
+					"dataset": {
+						"referenceName": "Config_Blob_Dataset",
+						"type": "DatasetReference",
+						"parameters": {
+							"FilePath": {
+								"value": "@concat('ioc/enhance/',pipeline().parameters.IngestConfig.InputValues.DataSource)",
+								"type": "Expression"
+							},
+							"FileName": {
+								"value": "@concat(activity('Fetch Model Info').output.value[0].Pipeline[0].InputValues.EnhanceTable,'.json')",
+								"type": "Expression"
+							},
+							"ContainerName": {
+								"value": "@pipeline().parameters.EnhanceConfigContainer",
+								"type": "Expression"
+							}
+						}
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "KickOff Enhance Activity",
+				"type": "Switch",
+				"dependsOn": [
+					{
+						"activity": "Fetch Enhance Info",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"on": {
+						"value": "@coalesce(activity('Fetch Enhance Info').output.value[0].Pipeline[0].EnhancePipelineName,activity('Fetch Enhance Info').output.value[0].Pipeline[0].InputValues.DataflowName)",
+						"type": "Expression"
+					},
+					"cases": [
+						{
+							"value": "Activity-Enhance-Dimension-SCD2-Pipeline",
+							"activities": [
+								{
+									"name": "Kickoff Activity Enhance SCD2 Dimension",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Activity-Enhance-Dimension-SCD2-Pipeline",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"ModelFilePath": {
+												"value": "@concat('ioc/',pipeline().parameters.IngestConfig.InputValues.DataSource,'/',activity('Fetch Model Info').output.value[0].Pipeline[0].InputValues.ModelTable,'/',pipeline().parameters.Year,'/',pipeline().parameters.Month,'/',pipeline().parameters.Day)",
+												"type": "Expression"
+											},
+											"ModelTable": {
+												"value": "@concat(activity('Fetch Model Info').output.value[0].Pipeline[0].InputValues.ModelTable,'.csv')",
+												"type": "Expression"
+											},
+											"ModelDataContainer": {
+												"value": "@pipeline().parameters.ModelDataContainer",
+												"type": "Expression"
+											},
+											"KeyColumns": {
+												"value": "@activity('Fetch Enhance Info').output.value[0].Pipeline[0].InputValues.KeyColumns",
+												"type": "Expression"
+											},
+											"NonKeyColumns": {
+												"value": "@activity('Fetch Enhance Info').output.value[0].Pipeline[0].InputValues.NonKeyColumns",
+												"type": "Expression"
+											},
+											"SKColumn": {
+												"value": "@activity('Fetch Enhance Info').output.value[0].Pipeline[0].InputValues.SurrogateKeyColumn",
+												"type": "Expression"
+											},
+											"EnhanceTable": {
+												"value": "@concat(activity('Fetch Enhance Info').output.value[0].Pipeline[0].InputValues.EnhanceTable,'.csv')",
+												"type": "Expression"
+											},
+											"EnhanceFilePath": {
+												"value": "@concat('ioc/dimension/',pipeline().parameters.IngestConfig.InputValues.DataSource,'/',activity('Fetch Enhance Info').output.value[0].Pipeline[0].InputValues.EnhanceTable)",
+												"type": "Expression"
+											},
+											"EnhanceDataContainer": {
+												"value": "@pipeline().parameters.EnhanceDataContainer",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			},
+			{
+				"name": "KickOff Database Activity",
+				"type": "Switch",
+				"dependsOn": [
+					{
+						"activity": "KickOff Enhance Activity",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"on": {
+						"value": "@activity('Fetch Enhance Info').output.value[0].Pipeline[0].DatabasePipelineName",
+						"type": "Expression"
+					},
+					"cases": [
+						{
+							"value": "Activity-DataLake-Database-Copy-Pipeline",
+							"activities": [
+								{
+									"name": "Kickoff Activity DataLake Database Copy",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Activity-DataLake-Database-Copy-Pipeline",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"SourceContainer": {
+												"value": "@pipeline().parameters.EnhanceDataContainer",
+												"type": "Expression"
+											},
+											"SourceFilePath": {
+												"value": "@concat('ioc/dimension/',pipeline().parameters.IngestConfig.InputValues.DataSource,'/',activity('Fetch Enhance Info').output.value[0].Pipeline[0].InputValues.EnhanceTable)",
+												"type": "Expression"
+											},
+											"SourceFileName": {
+												"value": "@concat(activity('Fetch Enhance Info').output.value[0].Pipeline[0].InputValues.EnhanceTable,'.csv')",
+												"type": "Expression"
+											},
+											"TargetSchemaName": {
+												"value": "dim",
+												"type": "Expression"
+											},
+											"TargetTableName": {
+												"value": "@activity('Fetch Enhance Info').output.value[0].Pipeline[0].InputValues.EnhanceTable",
+												"type": "Expression"
+											},
+											"PreCopyScript": {
+												"value": "@activity('Fetch Enhance Info').output.value[0].Pipeline[0].InputValues.PreCopyScript",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						},
+						{
+							"value": "Activity-Enhance-Stage-StoredProcedure-Pipeline",
+							"activities": [
+								{
+									"name": "Activity Enhance Stage StoredProcedure",
+									"type": "ExecutePipeline",
+									"dependsOn": [],
+									"userProperties": [],
+									"typeProperties": {
+										"pipeline": {
+											"referenceName": "Activity-Enhance-Database-Stage-StoredProcedure-Pipeline",
+											"type": "PipelineReference"
+										},
+										"waitOnCompletion": true,
+										"parameters": {
+											"SourceContainer": {
+												"value": "@pipeline().parameters.EnhanceDataContainer",
+												"type": "Expression"
+											},
+											"SourceFilePath": {
+												"value": "@concat('ioc/dimension/',pipeline().parameters.IngestConfig.InputValues.DataSource,'/',activity('Fetch Enhance Info').output.value[0].Pipeline[0].InputValues.EnhanceTable)",
+												"type": "Expression"
+											},
+											"SourceFileName": {
+												"value": "@concat(activity('Fetch Enhance Info').output.value[0].Pipeline[0].InputValues.EnhanceTable,'.csv')",
+												"type": "Expression"
+											},
+											"TargetSchemaName": {
+												"value": "dim",
+												"type": "Expression"
+											},
+											"TargetTableName": {
+												"value": "@activity('Fetch Enhance Info').output.value[0].Pipeline[0].InputValues.EnhanceTable",
+												"type": "Expression"
+											},
+											"PreCopyScript": {
+												"value": "@activity('Fetch Enhance Info').output.value[0].Pipeline[0].InputValues.PreCopyScript",
+												"type": "Expression"
+											},
+											"StoredProcedureName": {
+												"value": "@activity('Fetch Enhance Info').output.value[0].Pipeline[0].InputValues.StoredProcedure",
+												"type": "Expression"
+											},
+											"TableSchema": {
+												"value": "@activity('Fetch Enhance Info').output.value[0].Pipeline[0].InputValues.TableSchema",
+												"type": "Expression"
+											}
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"IngestConfig": {
+				"type": "object"
+			},
+			"FullLoadAllTables": {
+				"type": "string"
+			},
+			"Year": {
+				"type": "string"
+			},
+			"Month": {
+				"type": "string"
+			},
+			"Day": {
+				"type": "string"
+			},
+			"Hour": {
+				"type": "string"
+			},
+			"Minute": {
+				"type": "string"
+			},
+			"IngestDataContainer": {
+				"type": "string"
+			},
+			"ModelDataContainer": {
+				"type": "string"
+			},
+			"ModelConfigContainer": {
+				"type": "string"
+			},
+			"EnhanceDataContainer": {
+				"type": "string"
+			},
+			"EnhanceConfigContainer": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "Orchestration/IOC"
+		},
+		"annotations": []
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

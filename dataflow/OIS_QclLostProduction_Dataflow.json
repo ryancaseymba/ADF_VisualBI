@@ -1,0 +1,70 @@
+{
+	"name": "OIS_QclLostProduction_Dataflow",
+	"properties": {
+		"folder": {
+			"name": "IOC"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SourceFromModel"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SinkFact"
+				},
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SinkProduct"
+				},
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SinkPeriodType"
+				}
+			],
+			"transformations": [
+				{
+					"name": "FactGenerateHashColumns"
+				},
+				{
+					"name": "FactDistinctRows"
+				},
+				{
+					"name": "ProductGenerateHashColumns"
+				},
+				{
+					"name": "ProductDistinctRows"
+				},
+				{
+					"name": "ProductSk"
+				},
+				{
+					"name": "PeriodTypeHashColumns"
+				},
+				{
+					"name": "PeriodTypeDistinctRows"
+				},
+				{
+					"name": "PeriodTypeSk"
+				}
+			],
+			"script": "source(output(\n\t\tANNOTATION as string,\n\t\tEND_TIME as string,\n\t\tENG_LOST_PRODUCTION as string,\n\t\tENG_PRODUCTION_UOM as string,\n\t\tHIGH_RATE as string,\n\t\tLOCATION_ID as string,\n\t\tLOW_RATE as string,\n\t\tPERIOD_RATE as string,\n\t\tPERIOD_TYPE as string,\n\t\tPRODUCT as string,\n\t\tRAW_LOST_PRODUCTION as string,\n\t\tREASON_ID as string,\n\t\tSHIFT_ID as string,\n\t\tSTART_TIME as string,\n\t\tTIMESPAN_MINUTES as string,\n\t\tUNIT_ID as string,\n\t\tPIPELINERUNTIME as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> SourceFromModel\nSourceFromModel derive(HashKey = sha2(256,byNames(['PERIOD_TYPE','REASON_ID','END_TIME','START_TIME','UNIT_ID'])),\n\t\tHashNonKey = sha2(256,byNames(['ANNOTATION','ENG_LOST_PRODUCTION','ENG_PRODUCTION_UOM','HIGH_RATE','LOCATION_ID','LOW_RATE','PERIOD_RATE','RAW_LOST_PRODUCTION','REASON_ID','SHIFT_ID','TIMESPAN_MINUTES']))) ~> FactGenerateHashColumns\nFactGenerateHashColumns aggregate(groupBy(HashKey),\n\teach(match(!in(['HashKey','PIPELINERUNTIME'],name)), $$ = first($$))) ~> FactDistinctRows\nSourceFromModel derive(HashKey = sha2(256,byName('PRODUCT'))) ~> ProductGenerateHashColumns\nProductGenerateHashColumns aggregate(groupBy(HashKey),\n\tPRODUCT = first(PRODUCT)) ~> ProductDistinctRows\nProductDistinctRows keyGenerate(output(ProductSkId as long),\n\tstartAt: 1L) ~> ProductSk\nSourceFromModel derive(HashKey = sha2(256,byName('PERIOD_TYPE'))) ~> PeriodTypeHashColumns\nPeriodTypeHashColumns aggregate(groupBy(HashKey),\n\tPERIOD_TYPE = first(PERIOD_TYPE)) ~> PeriodTypeDistinctRows\nPeriodTypeDistinctRows keyGenerate(output(PeriodTypeSkId as long),\n\tstartAt: 1L) ~> PeriodTypeSk\nFactDistinctRows sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['LostProduction.csv'],\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkFact\nProductSk sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['Product.csv'],\n\tmapColumn(\n\t\tHashKey,\n\t\tPRODUCT,\n\t\tProductSkId\n\t),\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkProduct\nPeriodTypeSk sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:['PeriodType.csv'],\n\tmapColumn(\n\t\tHashKey,\n\t\tPERIOD_TYPE,\n\t\tPeriodTypeSkId\n\t),\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkPeriodType"
+		}
+	}
+}

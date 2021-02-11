@@ -1,0 +1,76 @@
+{
+	"name": "OIS_QclMineability_WithExistingData_Dataflow",
+	"properties": {
+		"folder": {
+			"name": "IOC"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "Source1FromModel"
+				},
+				{
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "Source2FromModel"
+				},
+				{
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "ExistingMineability"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SinkMineability"
+				}
+			],
+			"transformations": [
+				{
+					"name": "JoinSplitHole"
+				},
+				{
+					"name": "MineabilityHashColumn"
+				},
+				{
+					"name": "MineabilityDistinctRows"
+				},
+				{
+					"name": "MineabilityNewRows"
+				},
+				{
+					"name": "MineabilitySk"
+				},
+				{
+					"name": "MineabilityMaxKey"
+				},
+				{
+					"name": "MineabilityMaxSk"
+				},
+				{
+					"name": "MineabilityUpdateSk"
+				},
+				{
+					"name": "MineabilityUnionAll"
+				},
+				{
+					"name": "SelectSplitHoleMineability"
+				}
+			],
+			"script": "source(output(\n\t\tLocationId as string,\n\t\tModifiedDate as string,\n\t\tMtxX as string,\n\t\tProspHoleId as string,\n\t\tProspStandard as string,\n\t\tSplitMineability as string,\n\t\tSplitThck as string,\n\t\tSplitnum as string,\n\t\tPipelineRunTime as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> Source1FromModel\nsource(output(\n\t\tHoleMineability as string,\n\t\tLocationId as string,\n\t\tModifiedDate as string,\n\t\tMtxThck as string,\n\t\tMtxWetDensity as string,\n\t\tMtxX as string,\n\t\tOvbThck as string,\n\t\tProspHoleId as string,\n\t\tProspStandard as string,\n\t\tTotX as string,\n\t\tWstThck as string,\n\t\tPipelineRunTime as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> Source2FromModel\nsource(output(\n\t\tHashKey as string,\n\t\tSplitMineability as string,\n\t\tHoleMineability as string,\n\t\tMineabilitySkId as string\n\t),\n\tallowSchemaDrift: true,\n\tvalidateSchema: false) ~> ExistingMineability\nSource1FromModel, Source2FromModel join(Source1FromModel@LocationId == Source2FromModel@LocationId\n\t&& Source1FromModel@ProspHoleId == Source2FromModel@ProspHoleId,\n\tjoinType:'inner',\n\tbroadcast: 'auto')~> JoinSplitHole\nSelectSplitHoleMineability derive(HashKey = sha2(256, byNames(['SplitMineability','HoleMineability']))) ~> MineabilityHashColumn\nMineabilityHashColumn aggregate(groupBy(HashKey),\n\tSplitMineability = first(SplitMineability),\n\t\tHoleMineability = first(HoleMineability)) ~> MineabilityDistinctRows\nMineabilityDistinctRows, ExistingMineability exists(MineabilityDistinctRows@HashKey == ExistingMineability@HashKey,\n\tnegate:true,\n\tbroadcast: 'auto')~> MineabilityNewRows\nMineabilityNewRows keyGenerate(output(MineabilitySkId as long),\n\tstartAt: 1L) ~> MineabilitySk\nMineabilitySk, MineabilityMaxSk join(HashKey == toString(MaxKey) || true(),\n\tjoinType:'cross',\n\tbroadcast: 'auto')~> MineabilityMaxKey\nExistingMineability aggregate(MaxKey = max(toInteger(MineabilitySkId))) ~> MineabilityMaxSk\nMineabilityMaxKey derive(MineabilitySkId = toString(add(MineabilitySkId,iifNull(MaxKey,0)))) ~> MineabilityUpdateSk\nMineabilityUpdateSk, ExistingMineability union(byName: true)~> MineabilityUnionAll\nJoinSplitHole select(mapColumn(\n\t\tLocationId = Source1FromModel@LocationId,\n\t\tModifiedDate = Source1FromModel@ModifiedDate,\n\t\tMtxX = Source1FromModel@MtxX,\n\t\tProspHoleId = Source1FromModel@ProspHoleId,\n\t\tProspStandard = Source1FromModel@ProspStandard,\n\t\tSplitMineability,\n\t\tSplitThck,\n\t\tSplitnum,\n\t\tPipelineRunTime = Source1FromModel@PipelineRunTime,\n\t\tHoleMineability,\n\t\tLocationId = Source2FromModel@LocationId,\n\t\tModifiedDate = Source2FromModel@ModifiedDate,\n\t\tMtxThck,\n\t\tMtxWetDensity,\n\t\tMtxX = Source2FromModel@MtxX,\n\t\tOvbThck,\n\t\tProspHoleId = Source2FromModel@ProspHoleId,\n\t\tProspStandard = Source2FromModel@ProspStandard,\n\t\tTotX,\n\t\tWstThck,\n\t\tPipelineRunTime = Source2FromModel@PipelineRunTime\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SelectSplitHoleMineability\nMineabilityUnionAll sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tmapColumn(\n\t\tHashKey,\n\t\tSplitMineability,\n\t\tHoleMineability,\n\t\tMineabilitySkId\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkMineability"
+		}
+	}
+}

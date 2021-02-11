@@ -1,0 +1,67 @@
+{
+	"name": "Dedup_GetWaterMark_WithExistingData_Dataflow",
+	"properties": {
+		"folder": {
+			"name": "IOC"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "Source"
+				},
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "ExistingData"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "CopyDeDuppedData"
+				},
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "CopyWatermark"
+				}
+			],
+			"transformations": [
+				{
+					"name": "RankBasedOnTriggerTime"
+				},
+				{
+					"name": "GetLatestRecords"
+				},
+				{
+					"name": "GetMaxDeltaValue"
+				},
+				{
+					"name": "DeriveDeltaColumn"
+				},
+				{
+					"name": "DropUnwantedColumns"
+				},
+				{
+					"name": "AddHashColumn"
+				},
+				{
+					"name": "Union"
+				}
+			],
+			"script": "parameters{\n\tModelTable as string,\n\tDeltaColumn as string,\n\tSourceTable as string,\n\tKeyColumns as string\n}\nsource(allowSchemaDrift: true,\n\tvalidateSchema: false) ~> Source\nsource(allowSchemaDrift: true,\n\tvalidateSchema: false) ~> ExistingData\nAddHashColumn window(over(keyColumns_hash),\n\tdesc(TriggerTime, true),\n\tDedupRnk = rank()) ~> RankBasedOnTriggerTime\nRankBasedOnTriggerTime filter(DedupRnk==1) ~> GetLatestRecords\nDeriveDeltaColumn aggregate(Delta = max(toTimestamp(Delta, 'yyyy-MM-dd HH:mm:ss'))) ~> GetMaxDeltaValue\nSource derive(Delta = toString(byName($DeltaColumn))) ~> DeriveDeltaColumn\nGetLatestRecords select(mapColumn(\n\t\teach(match(!in(['DedupRnk','keyColumns_hash','TriggerTime'],name)))\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> DropUnwantedColumns\nUnion derive(keyColumns_hash = sha2(256,byNames(split($KeyColumns,'-'))),\n\t\tTriggerTime = toString(byName('PipelineRunTime'))) ~> AddHashColumn\nSource, ExistingData union(byName: true)~> Union\nDropUnwantedColumns sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:[($ModelTable)],\n\ttruncate: true,\n\tpartitionBy('hash', 1),\n\tdateFormat:'yyyy-MM-dd',\n\ttimestampFormat:'MM-dd-yyyy HH:mm:ss',\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\tquoteAll: true) ~> CopyDeDuppedData\nGetMaxDeltaValue sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:[(replace($SourceTable,'.','_watermark.'))],\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\tquoteAll: true) ~> CopyWatermark"
+		}
+	}
+}

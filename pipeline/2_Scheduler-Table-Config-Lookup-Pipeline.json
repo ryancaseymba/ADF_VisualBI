@@ -1,0 +1,129 @@
+{
+	"name": "2_Scheduler-Table-Config-Lookup-Pipeline",
+	"properties": {
+		"description": "If the JSON item is not null, look up the corresponding table config file and pass it as a parameter to the next pipeline.",
+		"activities": [
+			{
+				"name": "Check If Table Is Null",
+				"description": "Checks if table item is null.",
+				"type": "IfCondition",
+				"dependsOn": [],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@not(equals(pipeline().parameters.TableName, null))",
+						"type": "Expression"
+					},
+					"ifTrueActivities": [
+						{
+							"name": "Input File Lookup",
+							"description": "Looks up table config file",
+							"type": "Lookup",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "JsonSource",
+									"storeSettings": {
+										"type": "AzureBlobStorageReadSettings",
+										"recursive": true
+									},
+									"formatSettings": {
+										"type": "JsonReadSettings"
+									}
+								},
+								"dataset": {
+									"referenceName": "Config_Blob_Dataset",
+									"type": "DatasetReference",
+									"parameters": {
+										"FilePath": {
+											"value": "@concat('ioc/ingest/',pipeline().parameters.DataSource,'/',pipeline().parameters.SchemaName)",
+											"type": "Expression"
+										},
+										"FileName": {
+											"value": "@concat(pipeline().parameters.TableName,'.json')",
+											"type": "Expression"
+										},
+										"ContainerName": "pipeline-parameters"
+									}
+								}
+							}
+						},
+						{
+							"name": "Pass Table Config",
+							"description": "Executes Scheduler-Parse-Config-Pipeline with new parameters from lookup",
+							"type": "ExecutePipeline",
+							"dependsOn": [
+								{
+									"activity": "Input File Lookup",
+									"dependencyConditions": [
+										"Succeeded"
+									]
+								}
+							],
+							"userProperties": [],
+							"typeProperties": {
+								"pipeline": {
+									"referenceName": "3_Scheduler-Parse-Config-Pipeline",
+									"type": "PipelineReference"
+								},
+								"waitOnCompletion": true,
+								"parameters": {
+									"Table": {
+										"value": "@activity('Input File Lookup').output.firstrow",
+										"type": "Expression"
+									},
+									"ScheduledTime": {
+										"value": "@pipeline().parameters.ScheduledTime",
+										"type": "Expression"
+									},
+									"FullLoadAllTables": {
+										"value": "@pipeline().parameters.FullLoadAllTables",
+										"type": "Expression"
+									},
+									"ProjectTag": {
+										"value": "@pipeline().parameters.ProjectTag",
+										"type": "Expression"
+									}
+								}
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"TableName": {
+				"type": "String"
+			},
+			"ScheduledTime": {
+				"type": "String"
+			},
+			"DataSource": {
+				"type": "string"
+			},
+			"SchemaName": {
+				"type": "string"
+			},
+			"FullLoadAllTables": {
+				"type": "bool",
+				"defaultValue": false
+			},
+			"ProjectTag": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "Schedulers"
+		},
+		"annotations": []
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

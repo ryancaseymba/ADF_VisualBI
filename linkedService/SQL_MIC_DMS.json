@@ -1,0 +1,23 @@
+{
+	"name": "SQL_MIC_DMS",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "SqlServer",
+		"typeProperties": {
+			"connectionString": "Integrated Security=False;Data Source=NWAPPPRD8;Initial Catalog=PulseDB;User ID=DWUser",
+			"password": {
+				"type": "AzureKeyVaultSecret",
+				"store": {
+					"referenceName": "AKV_MIC",
+					"type": "LinkedServiceReference"
+				},
+				"secretName": "DMS-Password"
+			}
+		},
+		"connectVia": {
+			"referenceName": "ADF-IR-01",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}

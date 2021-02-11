@@ -1,0 +1,255 @@
+{
+	"name": "Activity-Enhance-Dimension-SCD2-Pipeline",
+	"properties": {
+		"activities": [
+			{
+				"name": "Validate Whether File Exists",
+				"type": "GetMetadata",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference",
+						"parameters": {
+							"ContainerName": {
+								"value": "@pipeline().parameters.EnhanceDataContainer",
+								"type": "Expression"
+							},
+							"FilePath": {
+								"value": "@pipeline().parameters.EnhanceFilePath",
+								"type": "Expression"
+							},
+							"FileName": {
+								"value": "@pipeline().parameters.EnhanceTable",
+								"type": "Expression"
+							}
+						}
+					},
+					"fieldList": [
+						"exists"
+					],
+					"storeSettings": {
+						"type": "AzureBlobFSReadSettings",
+						"recursive": true
+					},
+					"formatSettings": {
+						"type": "DelimitedTextReadSettings"
+					}
+				}
+			},
+			{
+				"name": "Check If Enhance File Exists",
+				"type": "IfCondition",
+				"dependsOn": [
+					{
+						"activity": "Validate Whether File Exists",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"expression": {
+						"value": "@equals(activity('Validate Whether File Exists').output.exists,true)",
+						"type": "Expression"
+					},
+					"ifFalseActivities": [
+						{
+							"name": "Generic SCD2 Dataflow",
+							"type": "ExecuteDataFlow",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataflow": {
+									"referenceName": "Generic_SCD2_Dataflow",
+									"type": "DataFlowReference",
+									"parameters": {
+										"DimTable": {
+											"value": "'@{pipeline().parameters.EnhanceTable}'",
+											"type": "Expression"
+										},
+										"KeyColumns": {
+											"value": "'@{pipeline().parameters.KeyColumns}'",
+											"type": "Expression"
+										},
+										"SKColumn": {
+											"value": "'@{pipeline().parameters.SKColumn}'",
+											"type": "Expression"
+										}
+									},
+									"datasetParameters": {
+										"SourceInput": {
+											"ContainerName": {
+												"value": "@pipeline().parameters.ModelDataContainer",
+												"type": "Expression"
+											},
+											"FilePath": {
+												"value": "@pipeline().parameters.ModelFilePath",
+												"type": "Expression"
+											},
+											"FileName": {
+												"value": "@pipeline().parameters.ModelTable",
+												"type": "Expression"
+											}
+										},
+										"SinktoDatalake": {
+											"FilePath": {
+												"value": "@pipeline().parameters.EnhanceFilePath",
+												"type": "Expression"
+											},
+											"ContainerName": {
+												"value": "@pipeline().parameters.EnhanceDataContainer",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								"compute": {
+									"coreCount": 8,
+									"computeType": "General"
+								}
+							}
+						}
+					],
+					"ifTrueActivities": [
+						{
+							"name": "Generic SCD2 With Existing Data",
+							"type": "ExecuteDataFlow",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"dataflow": {
+									"referenceName": "Generic_SCD2_WithExistingData_Dataflow",
+									"type": "DataFlowReference",
+									"parameters": {
+										"KeyColumns": {
+											"value": "'@{pipeline().parameters.KeyColumns}'",
+											"type": "Expression"
+										},
+										"NonKeyColumns": {
+											"value": "'@{pipeline().parameters.NonKeyColumns}'",
+											"type": "Expression"
+										},
+										"DimTable": {
+											"value": "'@{pipeline().parameters.EnhanceTable}'",
+											"type": "Expression"
+										},
+										"SKColumn": {
+											"value": "'@{pipeline().parameters.SKColumn}'",
+											"type": "Expression"
+										}
+									},
+									"datasetParameters": {
+										"GenericInput": {
+											"ContainerName": {
+												"value": "@pipeline().parameters.ModelDataContainer",
+												"type": "Expression"
+											},
+											"FilePath": {
+												"value": "@pipeline().parameters.ModelFilePath",
+												"type": "Expression"
+											},
+											"FileName": {
+												"value": "@pipeline().parameters.ModelTable",
+												"type": "Expression"
+											}
+										},
+										"ExistingData": {
+											"ContainerName": {
+												"value": "@pipeline().parameters.EnhanceDataContainer",
+												"type": "Expression"
+											},
+											"FilePath": {
+												"value": "@pipeline().parameters.EnhanceFilePath",
+												"type": "Expression"
+											},
+											"FileName": {
+												"value": "@pipeline().parameters.EnhanceTable",
+												"type": "Expression"
+											}
+										},
+										"SinkDataset": {
+											"FilePath": {
+												"value": "@pipeline().parameters.EnhanceFilePath",
+												"type": "Expression"
+											},
+											"ContainerName": {
+												"value": "@pipeline().parameters.EnhanceDataContainer",
+												"type": "Expression"
+											}
+										}
+									}
+								},
+								"compute": {
+									"coreCount": 8,
+									"computeType": "General"
+								}
+							}
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"ModelFilePath": {
+				"type": "string"
+			},
+			"ModelTable": {
+				"type": "string"
+			},
+			"ModelDataContainer": {
+				"type": "string"
+			},
+			"KeyColumns": {
+				"type": "string"
+			},
+			"NonKeyColumns": {
+				"type": "string"
+			},
+			"SKColumn": {
+				"type": "string"
+			},
+			"EnhanceTable": {
+				"type": "string"
+			},
+			"EnhanceFilePath": {
+				"type": "string"
+			},
+			"EnhanceDataContainer": {
+				"type": "string"
+			}
+		},
+		"variables": {
+			"ConditionCheck": {
+				"type": "Boolean"
+			}
+		},
+		"folder": {
+			"name": "Activity"
+		},
+		"annotations": []
+	}
+}

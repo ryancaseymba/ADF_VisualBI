@@ -1,0 +1,75 @@
+{
+	"name": "Generic_SCD2_WithExistingData_Dataflow",
+	"properties": {
+		"folder": {
+			"name": "Common"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "GenericInput"
+				},
+				{
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "ExistingData"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SinkDataset"
+				}
+			],
+			"transformations": [
+				{
+					"name": "NewAndUpdatedRows"
+				},
+				{
+					"name": "AddHashInput"
+				},
+				{
+					"name": "AddHashExisting"
+				},
+				{
+					"name": "GetMaxSurrogateKey"
+				},
+				{
+					"name": "AddKey"
+				},
+				{
+					"name": "JoinWithMaxSurrogateKey"
+				},
+				{
+					"name": "AddDimensionColumns"
+				},
+				{
+					"name": "DropUnwantedColsInput"
+				},
+				{
+					"name": "GetExistingRows"
+				},
+				{
+					"name": "UpdateSCDColumns"
+				},
+				{
+					"name": "UnionwithInsertedRows"
+				},
+				{
+					"name": "DropObsoleteColumns"
+				}
+			],
+			"script": "parameters{\n\tKeyColumns as string,\n\tNonKeyColumns as string,\n\tDimTable as string,\n\tSKColumn as string\n}\nsource(allowSchemaDrift: true,\n\tvalidateSchema: false) ~> GenericInput\nsource(allowSchemaDrift: true,\n\tvalidateSchema: false) ~> ExistingData\nAddHashInput, AddHashExisting exists(AddHashInput@HashKey == AddHashExisting@HashKey\n\t&& AddHashInput@HashNonKey == AddHashExisting@HashNonKey,\n\tnegate:true,\n\tbroadcast: 'auto')~> NewAndUpdatedRows\nGenericInput derive(HashKey = sha2(256,byNames(split($KeyColumns,'-'))),\n\t\tHashNonKey = sha2(256,byNames(split($NonKeyColumns,'-')))) ~> AddHashInput\nExistingData derive(HashKey = sha2(256,byNames(split($KeyColumns,'-'))),\n\t\tHashNonKey = sha2(256,byNames(split($NonKeyColumns,'-')))) ~> AddHashExisting\nAddHashExisting aggregate(MaxSurrogateKey = max(toInteger(byName($SKColumn)))) ~> GetMaxSurrogateKey\nNewAndUpdatedRows keyGenerate(output(Key as long),\n\tstartAt: 1L) ~> AddKey\nAddKey, GetMaxSurrogateKey join(Key == MaxSurrogateKey || true(),\n\tjoinType:'cross',\n\tbroadcast: 'auto')~> JoinWithMaxSurrogateKey\nJoinWithMaxSurrogateKey derive(each(match(in([\"Key\"],name)), replace($$,'Key',$SKColumn) = toString(add($$,MaxSurrogateKey))),\n\t\tEffectiveStartTime = toString(currentUTC()),\n\t\tEffectiveEndTime = toString(null()),\n\t\tIsCurrent = toString(1),\n\t\tIsDeleted = toString(0),\n\t\tCreatedDate = toString(currentUTC()),\n\t\tModifiedDate = toString(currentUTC())) ~> AddDimensionColumns\nAddDimensionColumns select(mapColumn(\n\t\teach(match(!in(['HashKey','HashNonKey','MaxSurrogateKey','Key','PipelineRunTime'],name)))\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> DropUnwantedColsInput\nAddHashInput, AddHashExisting join(AddHashInput@HashKey == AddHashExisting@HashKey,\n\tjoinType:'right',\n\tbroadcast: 'auto')~> GetExistingRows\nGetExistingRows derive(IsCurrent = toString(iif(and(AddHashInput@HashKey==AddHashExisting@HashKey,AddHashInput@HashNonKey!=AddHashExisting@HashNonKey),0,1)),\n\t\tModifiedDate = iif(and(AddHashInput@HashKey==AddHashExisting@HashKey,AddHashInput@HashNonKey==AddHashExisting@HashNonKey),toString(byName('ModifiedDate')),toString(currentUTC())),\n\t\tEffectiveEndTime = iif(and(AddHashInput@HashKey==AddHashExisting@HashKey,AddHashInput@HashNonKey!=AddHashExisting@HashNonKey),toString(currentUTC()),toString(null())),\n\t\tIsDeleted = toString(iif(AddHashInput@HashKey==AddHashExisting@HashKey,0,1))) ~> UpdateSCDColumns\nDropObsoleteColumns, DropUnwantedColsInput union(byName: true)~> UnionwithInsertedRows\nUpdateSCDColumns select(mapColumn(\n\t\teach(match(!in(['HashKey','HashNonKey','MaxSurrogateKey','PipelineRunTime','Key'],name)&&!in(['NewAndUpdatedRows','AddHashInput','GenericInput'],stream)))\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> DropObsoleteColumns\nUnionwithInsertedRows sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:[($DimTable)],\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> SinkDataset"
+		}
+	}
+}

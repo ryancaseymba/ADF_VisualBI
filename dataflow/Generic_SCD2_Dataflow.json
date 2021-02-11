@@ -1,0 +1,41 @@
+{
+	"name": "Generic_SCD2_Dataflow",
+	"properties": {
+		"folder": {
+			"name": "Common"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SourceInput"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "SinktoDatalake"
+				}
+			],
+			"transformations": [
+				{
+					"name": "AddDimensionColumns"
+				},
+				{
+					"name": "GenerateSurrogateKey"
+				},
+				{
+					"name": "DropObsoleteColumns"
+				}
+			],
+			"script": "parameters{\n\tDimTable as string ('profit_center.csv'),\n\tKeyColumns as string,\n\tSKColumn as string\n}\nsource(allowSchemaDrift: true,\n\tvalidateSchema: false) ~> SourceInput\nGenerateSurrogateKey derive(each(match(in([\"Key\"],name)), replace($$,'Key',$SKColumn) = toString($$)),\n\t\tEffectiveStartTime = currentUTC(),\n\t\tEffectiveEndTime = toString(toTimestamp(\"9999-12-31 00:00:00.000\", \"yyyy-MM-dd HH:mm:ss.SSS\")),\n\t\tIsCurrent = 1,\n\t\tIsDeleted = 0,\n\t\tCreatedDate = currentUTC(),\n\t\tModifiedDate = currentUTC()) ~> AddDimensionColumns\nSourceInput keyGenerate(output(Key as long),\n\tstartAt: 1L) ~> GenerateSurrogateKey\nAddDimensionColumns select(mapColumn(\n\t\teach(match(!in([\"Key\",\"PipelineRunTime\",\"PIPELINERUNTIME\"],name)))\n\t),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true) ~> DropObsoleteColumns\nDropObsoleteColumns sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:[($DimTable)],\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\tquoteAll: true) ~> SinktoDatalake"
+		}
+	}
+}

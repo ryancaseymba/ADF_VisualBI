@@ -1,0 +1,201 @@
+{
+	"name": "Activity-Model-Copy-Watermark-Pipeline",
+	"properties": {
+		"activities": [
+			{
+				"name": "Copy Files",
+				"type": "Copy",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "DelimitedTextSource",
+						"storeSettings": {
+							"type": "AzureBlobFSReadSettings",
+							"recursive": true,
+							"wildcardFolderPath": {
+								"value": "@pipeline().parameters.IngestFilePath",
+								"type": "Expression"
+							},
+							"wildcardFileName": "*",
+							"enablePartitionDiscovery": false
+						},
+						"formatSettings": {
+							"type": "DelimitedTextReadSettings"
+						}
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings",
+							"copyBehavior": "PreserveHierarchy"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".csv"
+						}
+					},
+					"enableStaging": false,
+					"translator": {
+						"value": "@pipeline().parameters.ColumnMapping",
+						"type": "Expression"
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference",
+						"parameters": {
+							"ContainerName": {
+								"value": "@pipeline().parameters.IngestDataContainer",
+								"type": "Expression"
+							},
+							"FilePath": {
+								"value": "@pipeline().parameters.IngestFilePath",
+								"type": "Expression"
+							},
+							"FileName": "*"
+						}
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "CSV_DataLake_Dataset",
+						"type": "DatasetReference",
+						"parameters": {
+							"ContainerName": {
+								"value": "@pipeline().parameters.ModelDataContainer",
+								"type": "Expression"
+							},
+							"FilePath": {
+								"value": "@pipeline().parameters.ModelFilePath",
+								"type": "Expression"
+							},
+							"FileName": {
+								"value": "@pipeline().parameters.ModelTable",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			},
+			{
+				"name": "GetWaterMark_Dataflow",
+				"type": "ExecuteDataFlow",
+				"dependsOn": [
+					{
+						"activity": "Copy Files",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"dataflow": {
+						"referenceName": "GetWaterMark_Dataflow",
+						"type": "DataFlowReference",
+						"parameters": {
+							"ModelTable": {
+								"value": "'@{pipeline().parameters.ModelTable}'",
+								"type": "Expression"
+							},
+							"DeltaColumn": {
+								"value": "'@{pipeline().parameters.ModelDeltaColumn}'",
+								"type": "Expression"
+							},
+							"SourceTable": {
+								"value": "'@{pipeline().parameters.SourceTable}'",
+								"type": "Expression"
+							},
+							"ModelFilePath": {
+								"value": "'@{pipeline().parameters.modelFilePath}'",
+								"type": "Expression"
+							}
+						},
+						"datasetParameters": {
+							"Source": {
+								"FilePath": {
+									"value": "@pipeline().parameters.ModelFilePath",
+									"type": "Expression"
+								},
+								"ContainerName": {
+									"value": "@pipeline().parameters.ModelDataContainer",
+									"type": "Expression"
+								}
+							},
+							"CopyWatermark": {
+								"FilePath": {
+									"value": "@pipeline().parameters.WatermarkFilePath",
+									"type": "Expression"
+								},
+								"ContainerName": {
+									"value": "@pipeline().parameters.IngestDataContainer",
+									"type": "Expression"
+								}
+							}
+						}
+					},
+					"compute": {
+						"coreCount": 8,
+						"computeType": "General"
+					}
+				}
+			}
+		],
+		"parameters": {
+			"IngestFilePath": {
+				"type": "string"
+			},
+			"ModelFilePath": {
+				"type": "string"
+			},
+			"WatermarkFilePath": {
+				"type": "string"
+			},
+			"ModelTable": {
+				"type": "string"
+			},
+			"IsDeltaTable": {
+				"type": "string"
+			},
+			"DeltaColumn": {
+				"type": "string"
+			},
+			"ModelDeltaColumn": {
+				"type": "string"
+			},
+			"IngestDataContainer": {
+				"type": "string"
+			},
+			"ModelDataContainer": {
+				"type": "string"
+			},
+			"ColumnMapping": {
+				"type": "object"
+			},
+			"SourceTable": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "Activity"
+		},
+		"annotations": []
+	}
+}

@@ -1,0 +1,12 @@
+{
+	"name": "DMS_SQL_Dataset",
+	"properties": {
+		"linkedServiceName": {
+			"referenceName": "SQL_MIC_DMS",
+			"type": "LinkedServiceReference"
+		},
+		"annotations": [],
+		"type": "SqlServerTable",
+		"schema": []
+	}
+}

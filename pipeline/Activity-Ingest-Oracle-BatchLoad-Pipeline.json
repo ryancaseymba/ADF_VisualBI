@@ -1,0 +1,182 @@
+{
+	"name": "Activity-Ingest-Oracle-BatchLoad-Pipeline",
+	"properties": {
+		"activities": [
+			{
+				"name": "Get Lower Bound Value",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "OracleSource",
+						"oracleReaderQuery": {
+							"value": "@pipeline().parameters.LowerBoundQuery",
+							"type": "Expression"
+						},
+						"partitionOption": "None",
+						"queryTimeout": "02:00:00"
+					},
+					"dataset": {
+						"referenceName": "OIS_Oracle_Dataset",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "Get Upper Bound Value",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "OracleSource",
+						"oracleReaderQuery": {
+							"value": "@pipeline().parameters.UpperBoundQuery",
+							"type": "Expression"
+						},
+						"partitionOption": "None",
+						"queryTimeout": "02:00:00"
+					},
+					"dataset": {
+						"referenceName": "OIS_Oracle_Dataset",
+						"type": "DatasetReference"
+					}
+				}
+			},
+			{
+				"name": "Copy Oracle Batch Data",
+				"type": "Copy",
+				"dependsOn": [
+					{
+						"activity": "Get Upper Bound Value",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					},
+					{
+						"activity": "Get Lower Bound Value",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "OracleSource",
+						"oracleReaderQuery": {
+							"value": "@replace(concat(pipeline().parameters.SourceQuery,' WHERE ?AdfRangePartitionColumnName <= ?AdfRangePartitionUpbound AND ?AdfRangePartitionColumnName >= ?AdfRangePartitionLowbound'),'{pipelineTime}',pipeline().TriggerTime)",
+							"type": "Expression"
+						},
+						"partitionOption": "DynamicRange",
+						"partitionSettings": {
+							"partitionColumnName": {
+								"value": "@{pipeline().parameters.PartitonColumn}",
+								"type": "Expression"
+							},
+							"partitionUpperBound": {
+								"value": "@{activity('Get Upper Bound Value').output.firstRow.MAX}",
+								"type": "Expression"
+							},
+							"partitionLowerBound": {
+								"value": "@{activity('Get Lower Bound Value').output.firstRow.MIN}",
+								"type": "Expression"
+							}
+						},
+						"queryTimeout": "02:00:00"
+					},
+					"sink": {
+						"type": "DelimitedTextSink",
+						"storeSettings": {
+							"type": "AzureBlobFSWriteSettings"
+						},
+						"formatSettings": {
+							"type": "DelimitedTextWriteSettings",
+							"quoteAllText": true,
+							"fileExtension": ".csv"
+						}
+					},
+					"enableStaging": false,
+					"parallelCopies": 2,
+					"translator": {
+						"type": "TabularTranslator",
+						"typeConversion": true,
+						"typeConversionSettings": {
+							"allowDataTruncation": true,
+							"treatBooleanAsNumber": false
+						}
+					}
+				},
+				"inputs": [
+					{
+						"referenceName": "OIS_Oracle_Dataset",
+						"type": "DatasetReference"
+					}
+				],
+				"outputs": [
+					{
+						"referenceName": "CSVBatch_DataLake_Dataset",
+						"type": "DatasetReference",
+						"parameters": {
+							"ContainerName": {
+								"value": "@pipeline().parameters.DataContainer",
+								"type": "Expression"
+							},
+							"FilePath": {
+								"value": "@concat(pipeline().parameters.TargetFilePath,'/')",
+								"type": "Expression"
+							}
+						}
+					}
+				]
+			}
+		],
+		"parameters": {
+			"SourceQuery": {
+				"type": "string"
+			},
+			"TargetFilePath": {
+				"type": "string"
+			},
+			"LowerBoundQuery": {
+				"type": "string"
+			},
+			"UpperBoundQuery": {
+				"type": "string"
+			},
+			"PartitonColumn": {
+				"type": "string"
+			},
+			"DataContainer": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "Activity"
+		},
+		"annotations": []
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

@@ -1,0 +1,23 @@
+{
+	"name": "HANA_MIC",
+	"type": "Microsoft.DataFactory/factories/linkedservices",
+	"properties": {
+		"annotations": [],
+		"type": "SapHana",
+		"typeProperties": {
+			"connectionString": "SERVERNODE=vhmhihu2db01.mna.corp.mosaicco.com:30415;UID=MOS_MIC_AIR",
+			"password": {
+				"type": "AzureKeyVaultSecret",
+				"store": {
+					"referenceName": "AKV_MIC",
+					"type": "LinkedServiceReference"
+				},
+				"secretName": "HANA-Password"
+			}
+		},
+		"connectVia": {
+			"referenceName": "ADF-IR-01",
+			"type": "IntegrationRuntimeReference"
+		}
+	}
+}

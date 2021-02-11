@@ -1,0 +1,39 @@
+{
+	"name": "GetWaterMark_Dataflow",
+	"properties": {
+		"description": "Fetches the Max delta column value and stores in watermark file",
+		"folder": {
+			"name": "IOC"
+		},
+		"type": "MappingDataFlow",
+		"typeProperties": {
+			"sources": [
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "Source"
+				}
+			],
+			"sinks": [
+				{
+					"dataset": {
+						"referenceName": "DataFlow_DataLake_Dataset",
+						"type": "DatasetReference"
+					},
+					"name": "CopyWatermark"
+				}
+			],
+			"transformations": [
+				{
+					"name": "GetMaxDeltaValue"
+				},
+				{
+					"name": "DeriveDeltaColumn"
+				}
+			],
+			"script": "parameters{\n\tModelTable as string,\n\tDeltaColumn as string,\n\tSourceTable as string,\n\tModelFilePath as string\n}\nsource(allowSchemaDrift: true,\n\tvalidateSchema: false) ~> Source\nDeriveDeltaColumn aggregate(Delta = max(toTimestamp(Delta, 'yyyy-MM-dd HH:mm:ss'))) ~> GetMaxDeltaValue\nSource derive(Delta = toString(byName($DeltaColumn))) ~> DeriveDeltaColumn\nGetMaxDeltaValue sink(allowSchemaDrift: true,\n\tvalidateSchema: false,\n\tpartitionFileNames:[(replace($SourceTable,'.','_watermark.'))],\n\tpartitionBy('hash', 1),\n\tskipDuplicateMapInputs: true,\n\tskipDuplicateMapOutputs: true,\n\tquoteAll: true) ~> CopyWatermark"
+		}
+	}
+}

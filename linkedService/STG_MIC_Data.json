@@ -1,0 +1,10 @@
+{
+	"name": "STG_MIC_Data",
+	"properties": {
+		"annotations": [],
+		"type": "AzureBlobFS",
+		"typeProperties": {
+			"url": "https://stmicdatadev01.dfs.core.windows.net"
+		}
+	}
+}

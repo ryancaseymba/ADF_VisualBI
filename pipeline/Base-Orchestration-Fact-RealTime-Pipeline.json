@@ -1,0 +1,10 @@
+{
+	"name": "Base-Orchestration-Fact-RealTime-Pipeline",
+	"properties": {
+		"folder": {
+			"name": "Orchestration/IOC"
+		},
+		"annotations": []
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}

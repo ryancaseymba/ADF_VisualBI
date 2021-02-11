@@ -1,0 +1,144 @@
+{
+	"name": "Activity-Ingest-HANA-BatchLoad-Pipeline",
+	"properties": {
+		"activities": [
+			{
+				"name": "Batch Lookup",
+				"type": "Lookup",
+				"dependsOn": [],
+				"policy": {
+					"timeout": "7.00:00:00",
+					"retry": 0,
+					"retryIntervalInSeconds": 30,
+					"secureOutput": false,
+					"secureInput": false
+				},
+				"userProperties": [],
+				"typeProperties": {
+					"source": {
+						"type": "SapHanaSource",
+						"query": {
+							"value": "@replace(pipeline().parameters.batchQuery,'{{currentYear}}',substring(utcnow(),0,4))",
+							"type": "Expression"
+						},
+						"partitionOption": "None"
+					},
+					"dataset": {
+						"referenceName": "HANA_Dataset",
+						"type": "DatasetReference"
+					},
+					"firstRowOnly": false
+				}
+			},
+			{
+				"name": "Batch Process Loop",
+				"type": "ForEach",
+				"dependsOn": [
+					{
+						"activity": "Batch Lookup",
+						"dependencyConditions": [
+							"Succeeded"
+						]
+					}
+				],
+				"userProperties": [],
+				"typeProperties": {
+					"items": {
+						"value": "@activity('Batch Lookup').output.value",
+						"type": "Expression"
+					},
+					"isSequential": false,
+					"batchCount": 4,
+					"activities": [
+						{
+							"name": "Copy HANA Batch Data",
+							"type": "Copy",
+							"dependsOn": [],
+							"policy": {
+								"timeout": "7.00:00:00",
+								"retry": 0,
+								"retryIntervalInSeconds": 30,
+								"secureOutput": false,
+								"secureInput": false
+							},
+							"userProperties": [],
+							"typeProperties": {
+								"source": {
+									"type": "SapHanaSource",
+									"query": {
+										"value": "@replace(pipeline().parameters.ingestQuery,'{{PlaceHolderClause}}',item().CAL_YEARMO.value)",
+										"type": "Expression"
+									},
+									"partitionOption": "None"
+								},
+								"sink": {
+									"type": "DelimitedTextSink",
+									"storeSettings": {
+										"type": "AzureBlobFSWriteSettings"
+									},
+									"formatSettings": {
+										"type": "DelimitedTextWriteSettings",
+										"quoteAllText": true,
+										"fileExtension": ".txt"
+									}
+								},
+								"enableStaging": false
+							},
+							"inputs": [
+								{
+									"referenceName": "HANA_Dataset",
+									"type": "DatasetReference"
+								}
+							],
+							"outputs": [
+								{
+									"referenceName": "CSV_DataLake_Dataset",
+									"type": "DatasetReference",
+									"parameters": {
+										"ContainerName": "ioc",
+										"FilePath": {
+											"value": "@concat(pipeline().parameters.filePath,'/batch')",
+											"type": "Expression"
+										},
+										"FileName": {
+											"value": "@concat(replace(pipeline().parameters.fileName,'.csv',''),'_',item()[trim(pipeline().parameters.deltaColumn)],'.csv')",
+											"type": "Expression"
+										}
+									}
+								}
+							]
+						}
+					]
+				}
+			}
+		],
+		"parameters": {
+			"ingestQuery": {
+				"type": "string"
+			},
+			"filePath": {
+				"type": "string"
+			},
+			"fileName": {
+				"type": "string"
+			},
+			"batchQuery": {
+				"type": "string"
+			},
+			"deltaColumn": {
+				"type": "string"
+			},
+			"dataContainer": {
+				"type": "string"
+			}
+		},
+		"folder": {
+			"name": "Activity"
+		},
+		"annotations": [
+			"Ingest",
+			"HANA"
+		]
+	},
+	"type": "Microsoft.DataFactory/factories/pipelines"
+}
